@@ -16,10 +16,10 @@ main{max-width:1090px;margin:36px auto;padding:0 20px}.logo{font-weight:800;font
 <section class="panel">
 <h2>Novo projeto</h2>
 <div class="grid"><div class="field"><label for="targetUrl">URL do site</label><input id="targetUrl" type="url" placeholder="https://exemplo.com.br" autocomplete="url" spellcheck="false"></div>
-<div class="field"><label for="engine">Motor de captura</label><select id="engine"><option value="basic">Rápido — HTML público</option><option value="advanced">Avançado — Playwright</option></select></div></div>
+<div class="field"><label for="engine">Motor de captura</label><select id="engine"><option value="advanced" selected>Fiel — Playwright (recomendado)</option><option value="basic">Rápido — HTML público (sem fidelidade)</option></select></div></div>
 <div class="field"><label for="projectType">Tipo de projeto</label><select id="projectType"><option value="site">Site</option><option value="webapp">Aplicativo web (captura inicial)</option></select></div>
 <div class="actions"><button id="cloneBtn" type="button">Raspar & Clonar</button><button id="resetBtn" class="secondary" type="button">Novo projeto / Limpar</button></div>
-<div class="meta">Modo rápido: copia o HTML público e mantém referências externas. Avançado: tenta coletar até 3 páginas e arquivos (CSS, JS e imagens). Aplicativos web complexos exigem reconstrução adicional; o código de backend original não é recuperado.</div>
+<div class="meta">A prévia fiel usa os arquivos CSS e imagens capturados. Modo rápido é apenas extração de HTML, sem garantia de layout. Playwright tenta coletar até 3 páginas e recursos. Aplicativos web complexos exigem reconstrução adicional; o código de backend original não é recuperado.</div>
 </section>
 <section class="panel"><h2>Resultado da captura</h2><div id="status" class="status" role="status" aria-live="polite">Nenhum projeto iniciado. Informe uma URL para começar.</div>
 <div id="details" class="hidden"><h3 id="projectTitle"></h3><div id="projectInfo" class="muted"></div><div class="actions" style="margin-top:18px"><button id="saveBtn">Baixar projeto ZIP</button><button id="viewBtn" class="secondary">Abrir prévia</button></div></div>
@@ -56,12 +56,55 @@ async function preview(){
         document.head.append(script);
       });
     }
-    const zip=await JSZip.loadAsync(lastZip);const entry=zip.file('index.html');
+    const zip=await JSZip.loadAsync(lastZip);
+    const entry=zip.file('index.html');
     if(!entry)throw new Error('O arquivo index.html não está no ZIP.');
-    let html=await entry.async('string');
-    html=html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'').replace(/<script\b[^>]*\/?>/gi,'');
-    $('previewFrame').srcdoc=html;
-    $('previewPanel').classList.remove('hidden');$('previewPanel').scrollIntoView({behavior:'smooth'});
+    const manifestFile=zip.file('captura.json');
+    const manifest=manifestFile?JSON.parse(await manifestFile.async('string')):{};
+    const doc=new DOMParser().parseFromString(await entry.async('string'),'text/html');
+    doc.querySelectorAll('script,iframe,object,embed,base,meta[http-equiv="refresh"]').forEach(el=>el.remove());
+    doc.querySelectorAll('*').forEach(el=>{for(const a of [...el.attributes])if(a.name.toLowerCase().startsWith('on'))el.removeAttribute(a.name);});
+    const assets={};
+    for(const file of Object.values(zip.files)){
+      if(file.dir || !file.name.startsWith('assets/'))continue;
+      const ext=file.name.split('.').pop().toLowerCase();
+      const types={css:'text/css',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp',gif:'image/gif',svg:'image/svg+xml',ico:'image/x-icon',woff:'font/woff',woff2:'font/woff2',avif:'image/avif'};
+      if(!types[ext])continue;
+      const arr=await file.async('base64');
+      assets[file.name]='data:'+types[ext]+';base64,'+arr;
+    }
+    // Inline stored CSS so iframe srcdoc has the actual stylesheet.
+    for(const link of [...doc.querySelectorAll('link[rel~="stylesheet"][href]')]){
+      const href=link.getAttribute('href').replace(/^\.\//,'');
+      const file=zip.file(href);
+      if(file){
+        let css=await file.async('string');
+        css=css.replace(/url\(\s*(['"]?)([^'")]+)\1\s*\)/gi,(m,q,raw)=>{
+          if(/^data:|^https?:|^\/\//i.test(raw))return m;
+          const assetKey='assets/'+raw.split('/').pop();
+          return assets[assetKey]?'url("'+assets[assetKey]+'")':m;
+        });
+        const style=doc.createElement('style');style.textContent=css;link.replaceWith(style);
+      }
+    }
+    for(const el of doc.querySelectorAll('[src],[poster],link[href]')){
+      for(const attr of ['src','poster','href']){
+        const raw=el.getAttribute(attr);
+        if(!raw)continue;
+        const key=raw.replace(/^\.\//,'');
+        if(assets[key])el.setAttribute(attr,assets[key]);
+      }
+    }
+    // HTML-only captures may depend on remote CSS and image references.
+    if(manifest.mode==='basic' && manifest.source){
+      const base=doc.createElement('base');base.href=manifest.source;
+      doc.head.prepend(base);
+      setStatus('Prévia do modo rápido: o HTML foi capturado, mas CSS e imagens externos podem não carregar. Para clonagem visual, escolha Fiel — Playwright.','error');
+    }
+    doc.querySelectorAll('[srcset]').forEach(el=>el.removeAttribute('srcset'));
+    $('previewFrame').srcdoc='<!doctype html>\n'+doc.documentElement.outerHTML;
+    $('previewPanel').classList.remove('hidden');
+    $('previewPanel').scrollIntoView({behavior:'smooth'});
   }catch(e){setStatus('O ZIP está disponível, mas a prévia não abriu: '+e.message,'error');}
 }
 async function clone(){
