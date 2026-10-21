@@ -10,7 +10,8 @@ const PAGE_LIMIT = 3;
 const ASSET_LIMIT = 100;
 const ASSET_MAX = 3 * 1024 * 1024;
 const ZIP_MAX = 30 * 1024 * 1024;
-const DEADLINE = 48000;
+const DEADLINE = 52000;
+module.exports.config = { maxDuration: 60 };
 
 function isPrivate(address) {
   const kind = net.isIP(address);
@@ -66,12 +67,13 @@ module.exports = async (req,res) => {
       args:chromium.args
     });
     const context=await browser.newContext({ignoreHTTPSErrors:false,serviceWorkers:'block',acceptDownloads:false});
+    const validatedHosts = new Set([entry.hostname]);
     await context.route('**/*', async route=>{
       const raw=route.request().url();
       try {
         const u=new URL(raw);
         if(u.protocol==='data:' || u.protocol==='blob:' || u.protocol==='about:') return route.continue();
-        await checkUrl(raw, origin);
+        if (!validatedHosts.has(u.hostname)) { await checkUrl(raw); validatedHosts.add(u.hostname); }
         if(Date.now()-start>DEADLINE) return route.abort();
         return route.continue();
       } catch { return route.abort(); }
@@ -100,7 +102,7 @@ module.exports = async (req,res) => {
           try {
             const absolute=new URL(value,current).href;
             const u=new URL(absolute);
-            if(!['http:','https:'].includes(u.protocol) || u.origin!==origin) return;
+            if(!['http:','https:'].includes(u.protocol)) return;
             const fallback=el.name==='script'?'js':el.name==='link'?'css':'jpg';
             if(el.name==='link' && !(/stylesheet|icon/i.test($(el).attr('rel')||''))) return;
             const local=safeName(absolute,fallback);
@@ -143,7 +145,7 @@ module.exports = async (req,res) => {
       if(zip.file(local) || zip.files[local]) continue;
       if(Object.keys(zip.files).length>ASSET_LIMIT+PAGE_LIMIT || Date.now()-start>DEADLINE-5000)break;
       try {
-        await checkUrl(url,origin);
+        await checkUrl(url);
         const response=await context.request.get(url,{timeout:6500,maxRedirects:0});
         if(!response.ok()) throw new Error('HTTP '+response.status());
         const data=await response.body();
