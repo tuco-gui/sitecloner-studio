@@ -1,483 +1,107 @@
-<!DOCTYPE html>
-<html lang="pt-BR" class="dark">
+<!doctype html>
+<html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SiteCloner Studio v2.0 — Clone Completo, Redesign IA & GitHub</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Montserrat:wght@400;600;700;800&family=Playfair+Display:wght@500;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['Inter', 'sans-serif'],
-            mono: ['JetBrains Mono', 'monospace'],
-          }
-        }
-      }
-    }
-  </script>
-  <style>
-    body { background-color: #090d16; color: #f1f5f9; }
-    .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
-    .custom-scroll::-webkit-scrollbar-track { background: #0f172a; }
-    .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
-    .glass { background: rgba(15, 23, 42, 0.88); backdrop-filter: blur(12px); }
-  </style>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SiteCloner Studio | Figueira</title>
+<style>
+:root{color-scheme:dark;font-family:Inter,system-ui,Arial,sans-serif;background:#090e17;color:#eef2fa}
+*{box-sizing:border-box}body{margin:0}header{border-bottom:1px solid #263245;background:#121b2b;padding:19px max(22px,calc((100% - 1090px)/2));display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+main{max-width:1090px;margin:36px auto;padding:0 20px}.logo{font-weight:800;font-size:20px;letter-spacing:-.5px}.muted{color:#a3b0c6;font-size:13px}.pill{background:#322a5f;color:#c5bafc;padding:5px 10px;border-radius:30px;font-size:11px;margin-left:9px}
+.panel{border:1px solid #29374d;background:#121d2d;border-radius:17px;padding:25px;margin-bottom:23px}.grid{display:grid;grid-template-columns:minmax(0,1fr) 230px;gap:18px}.field{margin:0 0 18px}label{font-size:12px;font-weight:700;color:#b0bed5;display:block;margin-bottom:8px}input,select{height:48px;background:#090f1d;color:#eef2fa;width:100%;padding:0 14px;border:1px solid #34435b;border-radius:10px;font:inherit;font-size:14px}input:focus,select:focus{outline:2px solid #746af6}button{cursor:pointer;color:#fff;background:#5548df;border:0;padding:12px 17px;border-radius:10px;font-weight:700;font-size:14px}button:hover:not(:disabled){filter:brightness(1.14)}button:disabled{opacity:.45;cursor:not-allowed}.secondary{background:#26354b}.actions{display:flex;gap:10px;flex-wrap:wrap}.status{border-radius:11px;padding:14px;border:1px solid #3d4b66;background:#0c1422;color:#cbd5e1;font-size:14px;white-space:pre-wrap;line-height:1.5}.status.error{border-color:#a3374a;color:#ffb8c5}.status.success{border-color:#277755;color:#ade8c6}.hidden{display:none}iframe{width:100%;height:540px;border:1px solid #4a5367;border-radius:9px;background:#fff}ul{padding-left:21px;line-height:1.7}.meta{font-size:12px;color:#93a7c0;margin-top:10px}h2{font-size:18px;margin:0 0 18px}h3{font-size:15px}code{color:#c1b4ff}a{color:#a9b3ff}@media(max-width:680px){.grid{grid-template-columns:1fr}.panel{padding:18px}header{padding:18px}}
+</style>
 </head>
-<body class="min-h-screen flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
-
-  <!-- TOP HEADER -->
-  <header class="sticky top-0 z-40 border-b border-slate-800/80 glass px-6 py-3.5">
-    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-          <i class="fa-solid fa-clone text-white text-lg"></i>
-        </div>
-        <div>
-          <div class="flex items-center gap-2">
-            <h1 class="font-bold text-lg tracking-tight text-white">SiteCloner Studio</h1>
-            <span class="text-[11px] font-mono uppercase px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-semibold">v2.0 Pro</span>
-          </div>
-          <p class="text-xs text-slate-400">Raspagem Completa • 10 Fotos/Item + Logo • Redesign IA • GitHub Push</p>
-        </div>
-      </div>
-
-      <!-- Actions -->
-      <div class="flex items-center gap-3">
-        <button onclick="downloadFullProjectZip()" class="flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold bg-sky-600 hover:bg-sky-500 text-white shadow transition cursor-pointer">
-          <i class="fa-solid fa-file-zipper"></i>
-          <span>Baixar ZIP Local</span>
-        </button>
-        <button onclick="goToActiveClone()" class="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow transition cursor-pointer">
-          <i class="fa-solid fa-eye"></i>
-          <span>Ver Clone Ativo</span>
-        </button>
-      </div>
-    </div>
-  </header>
-
-  <!-- MAIN CONTAINER -->
-  <main class="flex-1 max-w-7xl w-full mx-auto px-6 py-6 space-y-6">
-
-    <!-- CONTROL PANEL -->
-    <section class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-5">
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-end">
-        <div class="lg:col-span-6">
-          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">URL do Site Alvo</label>
-          <div class="relative">
-            <i class="fa-solid fa-globe absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500"></i>
-            <input id="targetUrlInput" type="text" value="" placeholder="https://exemplo.com.br" 
-              class="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white font-mono focus:outline-none focus:border-indigo-500" />
-          </div>
-        </div>
-        <div class="lg:col-span-3">
-          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Tipo de Site <span class="text-slate-500 font-normal">(Opcional)</span></label>
-          <select id="siteModuleSelect" class="w-full px-3.5 py-3 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-200">
-            <option value="auto" selected>✨ Auto-Detectar</option>
-            <option value="realestate">🏠 Imobiliária</option>
-            <option value="ecommerce">🛒 E-commerce</option>
-            <option value="institutional">🏢 Institucional</option>
-          </select>
-        </div>
-        <div class="lg:col-span-3">
-          <button id="runCloneButton" onclick="runFullClone()" class="w-full py-3 px-5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold text-sm rounded-xl shadow transition cursor-pointer">
-            <i class="fa-solid fa-bolt mr-1"></i> Raspar & Clonar
-          </button>
-        </div>
-      </div>
-
-      <div class="flex flex-wrap items-center gap-3 text-xs text-slate-300">
-        <label for="captureEngineSelect" class="font-semibold">Motor de captura</label>
-        <select id="captureEngineSelect" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white">
-          <option value="basic">Rápido (HTML público, até 15s)</option>
-          <option value="advanced">Avançado (Playwright, até 60s)</option>
-        </select>
-        <span class="text-slate-400">O modo rápido depende de CSS e imagens externos. O modo avançado tenta exportar os arquivos.</span>
-      </div>
-      <!-- MODE SWITCHER -->
-      <div class="pt-4 border-t border-slate-800 flex flex-wrap items-center justify-between gap-4">
-        <div class="flex items-center gap-2 bg-slate-950 p-1 rounded-xl border border-slate-800">
-          <button type="button" onclick="setCloneMode('exact')" id="modeExactBtn" class="py-2 px-4 rounded-lg text-xs font-semibold bg-indigo-600 text-white transition">
-            <i class="fa-solid fa-copy mr-1"></i> Clone Fiel 1:1
-          </button>
-          <button type="button" onclick="setCloneMode('redesign')" id="modeRedesignBtn" class="py-2 px-4 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition">
-            <i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Raspar + Novo Design (IA)
-          </button>
-        </div>
-        <div class="flex items-center gap-3 text-xs text-slate-300">
-          <span class="px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800"><i class="fa-solid fa-images text-indigo-400 mr-1.5"></i>10 Fotos/Imóvel</span>
-          <span class="px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800"><i class="fa-solid fa-copyright text-emerald-400 mr-1.5"></i>Logotipo Incluso</span>
-        </div>
-      </div>
-
-      <!-- REDESIGN STUDIO PANEL -->
-      <div id="redesignStudioPanel" class="hidden pt-4 border-t border-slate-800 space-y-4">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-semibold text-fuchsia-300"><i class="fa-solid fa-palette mr-1"></i> Estúdio de Novo Design (Mantém dados e as 10 fotos)</span>
-          <div class="flex gap-2 bg-slate-950 p-1 rounded-lg border border-slate-800">
-            <button type="button" onclick="setDesignSubMode('ai')" id="subModeAiBtn" class="px-3 py-1 rounded text-xs font-semibold bg-fuchsia-600 text-white">🤖 Modo IA</button>
-            <button type="button" onclick="setDesignSubMode('manual')" id="subModeManualBtn" class="px-3 py-1 rounded text-xs font-semibold text-slate-400">🎨 Paleta Manual</button>
-          </div>
-        </div>
-        <div id="aiDesignBox" class="grid grid-cols-1 md:grid-cols-12 gap-3 bg-slate-950 p-4 rounded-xl border border-fuchsia-500/30">
-          <div class="md:col-span-5">
-            <select id="aiPresetSelect" onchange="applyAiDesignPreset(this.value)" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white">
-              <option value="luxury">✨ Luxury Real Estate (Dourado & Dark Slate)</option>
-              <option value="modern">🚀 Startup Clean (Indigo & Sky)</option>
-              <option value="minimal">🌿 Minimalista Arquitetura (Oliva & Off-White)</option>
-            </select>
-          </div>
-          <div class="md:col-span-5">
-            <input id="aiPromptInput" type="text" placeholder="Ex: Tema escuro sofisticado..." class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white" />
-          </div>
-          <div class="md:col-span-2">
-            <button type="button" onclick="generateDesignFromPrompt()" class="w-full py-2 bg-fuchsia-600 hover:bg-fuchsia-500 text-white text-xs font-semibold rounded-lg">Aplicar IA</button>
-          </div>
-        </div>
-        <div id="manualDesignBox" class="hidden grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-950 p-4 rounded-xl border border-indigo-500/30">
-          <div>
-            <label class="block text-[11px] text-slate-400 mb-1">Cor Primária</label>
-            <input type="color" id="customPrimaryColor" value="#4f46e5" onchange="updateCloneDesignLive()" class="w-full h-9 rounded cursor-pointer bg-transparent" />
-          </div>
-          <div>
-            <label class="block text-[11px] text-slate-400 mb-1">Cor Secundária</label>
-            <input type="color" id="customAccentColor" value="#10b981" onchange="updateCloneDesignLive()" class="w-full h-9 rounded cursor-pointer bg-transparent" />
-          </div>
-          <div>
-            <label class="block text-[11px] text-slate-400 mb-1">Cor de Fundo</label>
-            <input type="color" id="customBgColor" value="#f8fafc" onchange="updateCloneDesignLive()" class="w-full h-9 rounded cursor-pointer bg-transparent" />
-          </div>
-          <div>
-            <label class="block text-[11px] text-slate-400 mb-1">Fonte</label>
-            <select id="customFontSelect" onchange="updateCloneDesignLive()" class="w-full px-2 py-2 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white">
-              <option value="'Inter', sans-serif">Inter</option>
-              <option value="'Playfair Display', serif">Playfair Display</option>
-            </select>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- TABS NAVIGATION -->
-    <div class="flex flex-wrap items-center gap-2 border-b border-slate-800 pb-3">
-      <button onclick="switchTab('clone')" id="tabBtn-clone" class="px-4 py-2.5 rounded-xl text-xs font-semibold bg-indigo-600 text-white cursor-pointer"><i class="fa-solid fa-desktop mr-1.5"></i>1. Clone Ativo</button>
-      <button onclick="switchTab('folders')" id="tabBtn-folders" class="px-4 py-2.5 rounded-xl text-xs font-semibold bg-slate-900 text-slate-400 border border-slate-800 cursor-pointer"><i class="fa-solid fa-folder-tree mr-1.5"></i>2. Níveis de Pastas</button>
-      <button onclick="switchTab('code')" id="tabBtn-code" class="px-4 py-2.5 rounded-xl text-xs font-semibold bg-slate-900 text-slate-400 border border-slate-800 cursor-pointer"><i class="fa-solid fa-terminal mr-1.5"></i>3. Códigos Python</button>
-      <button onclick="switchTab('github')" id="tabBtn-github" class="px-4 py-2.5 rounded-xl text-xs font-semibold bg-slate-900 text-slate-400 border border-slate-800 cursor-pointer"><i class="fa-brands fa-github mr-1.5"></i>4. GitHub Repo</button>
-    </div>
-
-    <!-- TAB 1: CLONE ATIVO -->
-    <section id="tabContent-clone" class="space-y-4">\n      <p id="captureResultStatus" class="hidden bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-emerald-300"></p>
-      <div class="border border-slate-700 rounded-2xl overflow-hidden shadow-2xl bg-white text-slate-900">
-        <div id="clonedSiteCanvas" class="min-h-[600px] transition-all duration-300" style="background-color: #f8fafc; color: #0f172a;">
-          <div id="emptyState" class="min-h-[600px] flex flex-col justify-center items-center gap-4 text-center px-6">
-            <i class="fa-solid fa-globe text-5xl text-indigo-500"></i>
-            <h2 class="text-xl font-extrabold">Nenhum site capturado</h2>
-            <p class="text-slate-500 max-w-md text-sm">Insira o endereço do site acima e clique em Raspar & Clonar para iniciar um projeto.</p>
-            <p id="cloneStatus" class="text-xs text-slate-500" role="status" aria-live="polite"></p>
-          </div>
-          <iframe id="capturedPreview" title="Prévia do site capturado" sandbox="" class="hidden w-full min-h-[650px] bg-white" referrerpolicy="no-referrer"></iframe>
-          <div id="legacyCatalog" class="hidden">
-          <nav id="clonedNavbar" class="border-b border-slate-200 bg-white px-6 py-4 flex flex-wrap items-center justify-between gap-4">
-            <div class="flex items-center gap-3">
-              <div id="clonedLogoBadge" class="w-10 h-10 rounded-lg flex items-center justify-center font-extrabold text-white bg-indigo-600">RI</div>
-              <div>
-                <span class="font-extrabold text-lg block leading-none">Realize Imobi</span>
-                <span class="text-[11px] opacity-60">Botucatu - SP • Catálogo Clonado</span>
-              </div>
-            </div>
-            <div class="flex gap-2">
-              <button onclick="filterClonedSite('todos')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-white cursor-pointer">Todos (20)</button>
-              <button onclick="filterClonedSite('venda')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-200 text-slate-800 cursor-pointer">Venda (10)</button>
-              <button onclick="filterClonedSite('locacao')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-200 text-slate-800 cursor-pointer">Locação (10)</button>
-            </div>
-          </nav>
-          <div id="clonedHero" class="px-6 py-8 text-white bg-gradient-to-r from-indigo-950 to-indigo-600">
-            <div class="max-w-5xl mx-auto flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <h2 class="text-2xl font-extrabold">Portal Imobiliário Clonado — Botucatu/SP</h2>
-                <p class="text-xs text-white/80">10 imóveis à venda + 10 para locação com galeria de 10 fotos.</p>
-              </div>
-              <input type="text" id="cloneSearchInput" oninput="renderClonedCards()" placeholder="Filtrar bairro..." class="px-3.5 py-2 rounded-lg text-xs text-slate-900 bg-white focus:outline-none w-64" />
-            </div>
-          </div>
-          <div class="p-6 max-w-6xl mx-auto">
-            <div id="clonedCardsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- TAB 2: FOLDERS -->
-    <section id="tabContent-folders" class="hidden">
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
-        <h3 class="font-bold text-base text-white"><i class="fa-solid fa-folder-tree text-amber-400 mr-2"></i>Estrutura de Pastas</h3>
-        <pre class="bg-slate-950 border border-slate-800 rounded-xl p-4 font-mono text-xs text-slate-300 overflow-x-auto">
-📦 sitecloner-studio/
-├── 📁 assets/logo/logo-principal.png
-├── 📁 imoveis/
-│   ├── 📁 venda/imovel_01..10/ (info.json + 10 fotos cada)
-│   └── 📁 locacao/imovel_01..10/ (info.json + 10 fotos cada)
-├── 📄 index.html
-└── 🐍 scraper.py</pre>
-      </div>
-    </section>
-
-    <!-- TAB 3: CODE -->
-    <section id="tabContent-code" class="hidden">
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
-        <h3 class="font-bold text-sm text-white">Script Python de Raspagem</h3>
-        <pre class="bg-slate-950 border border-slate-800 rounded-xl p-4 font-mono text-xs text-emerald-300 overflow-x-auto max-h-96">import os, re, json, requests
-from bs4 import BeautifulSoup
-
-# Script para raspar logo, 20 imóveis e 10 fotos por imóvel organizado em pastas.
-print("Execute: python3 scraper.py")</pre>
-      </div>
-    </section>
-
-    <!-- TAB 4: GITHUB -->
-    <section id="tabContent-github" class="hidden">
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
-        <h3 class="font-bold text-base text-white"><i class="fa-brands fa-github mr-2"></i>Status do Repositório GitHub</h3>
-        <p class="text-xs text-slate-400">Após salvar o arquivo <code>index.html</code> na pasta do projeto no Mac, envie o commit atualizado:</p>
-        <pre class="bg-slate-950 p-3 rounded-lg font-mono text-xs text-emerald-300">git add index.html
-git commit -m "fix: adiciona index.html completo"
-git push origin main</pre>
-      </div>
-    </section>
-
-  </main>
-
-  <!-- MODAL -->
-  <div id="photoGalleryModal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-3xl w-full p-5 space-y-4">
-      <div class="flex items-center justify-between">
-        <div>
-          <span id="modalPropFolder" class="text-[11px] font-mono text-indigo-400 block"></span>
-          <h4 id="modalPropTitle" class="font-bold text-sm text-white"></h4>
-        </div>
-        <button onclick="closeGalleryModal()" class="w-8 h-8 rounded-lg bg-slate-800 text-white cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-      <div class="relative aspect-video bg-slate-950 rounded-xl overflow-hidden">
-        <img id="modalMainImg" src="" class="w-full h-full object-cover" />
-        <span id="modalPhotoCounter" class="absolute bottom-3 left-3 bg-black/75 px-3 py-1 rounded text-xs font-mono text-white"></span>
-      </div>
-      <div id="modalThumbnails" class="grid grid-cols-10 gap-1.5"></div>
-    </div>
-  </div>
-
-  <script>
-    const PHOTO_POOL = [];
-    const SCRAPED_PROPERTIES = [];
-    let capturedHtml = "";
-    let capturedMeta = null;
-    let activeCloneFilter = "todos";
-    let activeThemeConfig = { primary: "#4f46e5", accent: "#10b981", bg: "#f8fafc", font: "'Inter', sans-serif", radius: "16px", isDark: false };
-    let currentModalProp = null;
-
-    function switchTab(tabId) {
-      ["clone", "folders", "code", "github"].forEach(t => {
-        document.getElementById(`tabContent-${t}`).classList.toggle("hidden", t !== tabId);
-        document.getElementById(`tabBtn-${t}`).className = t === tabId
-          ? "px-4 py-2.5 rounded-xl text-xs font-semibold bg-indigo-600 text-white cursor-pointer"
-          : "px-4 py-2.5 rounded-xl text-xs font-semibold bg-slate-900 text-slate-400 hover:text-white border border-slate-800 cursor-pointer";
+<body>
+<header><div><div class="logo">▣ SiteCloner Studio <span class="pill">3.1</span></div><div class="muted">Captura real de páginas web e exportação do projeto</div></div><div class="actions"><button id="downloadBtn" class="secondary" disabled>Baixar ZIP</button><button id="previewBtn" class="secondary" disabled>Ver clone ativo</button></div></header>
+<main>
+<section class="panel">
+<h2>Novo projeto</h2>
+<div class="grid"><div class="field"><label for="targetUrl">URL do site</label><input id="targetUrl" type="url" placeholder="https://exemplo.com.br" autocomplete="url" spellcheck="false"></div>
+<div class="field"><label for="engine">Motor de captura</label><select id="engine"><option value="basic">Rápido — HTML público</option><option value="advanced">Avançado — Playwright</option></select></div></div>
+<div class="field"><label for="projectType">Tipo de projeto</label><select id="projectType"><option value="site">Site</option><option value="webapp">Aplicativo web (captura inicial)</option></select></div>
+<div class="actions"><button id="cloneBtn" type="button">Raspar & Clonar</button><button id="resetBtn" class="secondary" type="button">Novo projeto / Limpar</button></div>
+<div class="meta">Modo rápido: copia o HTML público e mantém referências externas. Avançado: tenta coletar até 3 páginas e arquivos (CSS, JS e imagens). Aplicativos web complexos exigem reconstrução adicional; o código de backend original não é recuperado.</div>
+</section>
+<section class="panel"><h2>Resultado da captura</h2><div id="status" class="status" role="status" aria-live="polite">Nenhum projeto iniciado. Informe uma URL para começar.</div>
+<div id="details" class="hidden"><h3 id="projectTitle"></h3><div id="projectInfo" class="muted"></div><div class="actions" style="margin-top:18px"><button id="saveBtn">Baixar projeto ZIP</button><button id="viewBtn" class="secondary">Abrir prévia</button></div></div>
+</section>
+<section id="previewPanel" class="panel hidden"><h2>Prévia do HTML capturado</h2><div class="muted" style="margin-bottom:15px">Prévia isolada. Para navegação entre páginas e arquivos completos, extraia o ZIP em seu computador.</div><iframe id="previewFrame" sandbox="" referrerpolicy="no-referrer" title="Prévia do site capturado"></iframe></section>
+</main>
+<script>
+(function(){
+'use strict';
+const $=id=>document.getElementById(id);
+let lastZip=null,lastUrl=null,lastManifest=null,inProgress=false,aborter=null;
+function setStatus(message,type){const el=$('status');el.textContent=message;el.className='status'+(type?' '+type:'');}
+function clearResult(){
+  if(aborter)aborter.abort();aborter=null;inProgress=false;lastZip=null;lastManifest=null;lastUrl=null;
+  $('cloneBtn').disabled=false;$('cloneBtn').textContent='Raspar & Clonar';
+  $('downloadBtn').disabled=true;$('previewBtn').disabled=true;
+  $('details').classList.add('hidden');$('previewPanel').classList.add('hidden');$('previewFrame').removeAttribute('srcdoc');$('targetUrl').value='';
+  setStatus('Nenhum projeto iniciado. Informe uma URL para começar.');
+}
+function download(){
+  if(!lastZip){setStatus('Nenhum ZIP disponível. Primeiro capture um site.','error');return;}
+  const url=URL.createObjectURL(lastZip);const a=document.createElement('a');
+  a.href=url;a.download='sitecloner-projeto.zip';document.body.append(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),60000);
+}
+async function preview(){
+  if(!lastZip)return;
+  try{
+    if(typeof JSZip==='undefined'){
+      await new Promise((resolve,reject)=>{
+        const script=document.createElement('script');
+        script.src='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+        script.onload=resolve;script.onerror=()=>reject(new Error('Biblioteca de prévia indisponível'));
+        document.head.append(script);
       });
     }
-
-    function setCloneMode(mode) {
-      const panel = document.getElementById("redesignStudioPanel");
-      if (mode === "exact") {
-        panel.classList.add("hidden");
-        document.getElementById("modeExactBtn").className = "py-2 px-4 rounded-lg text-xs font-semibold bg-indigo-600 text-white transition";
-        document.getElementById("modeRedesignBtn").className = "py-2 px-4 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition";
-        applyThemeToClone("#4f46e5", "#10b981", "#f8fafc", "'Inter', sans-serif", "16px", false);
-      } else {
-        panel.classList.remove("hidden");
-        document.getElementById("modeRedesignBtn").className = "py-2 px-4 rounded-lg text-xs font-semibold bg-fuchsia-600 text-white transition";
-        document.getElementById("modeExactBtn").className = "py-2 px-4 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition";
-        applyAiDesignPreset(document.getElementById("aiPresetSelect").value);
-      }
+    const zip=await JSZip.loadAsync(lastZip);const entry=zip.file('index.html');
+    if(!entry)throw new Error('O arquivo index.html não está no ZIP.');
+    let html=await entry.async('string');
+    html=html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'').replace(/<script\b[^>]*\/?>/gi,'');
+    $('previewFrame').srcdoc=html;
+    $('previewPanel').classList.remove('hidden');$('previewPanel').scrollIntoView({behavior:'smooth'});
+  }catch(e){setStatus('O ZIP está disponível, mas a prévia não abriu: '+e.message,'error');}
+}
+async function clone(){
+  if(inProgress)return;
+  let url;try{url=new URL($('targetUrl').value.trim());if(!['http:','https:'].includes(url.protocol))throw Error();}catch{setStatus('Informe uma URL válida, começando por https://','error');return;}
+  inProgress=true;lastZip=null;lastManifest=null;lastUrl=url.href;aborter=new AbortController();
+  $('details').classList.add('hidden');$('previewPanel').classList.add('hidden');$('downloadBtn').disabled=true;$('previewBtn').disabled=true;
+  $('cloneBtn').disabled=true;$('cloneBtn').textContent='Capturando...';
+  const mode=$('engine').value,timeout=mode==='advanced'?72000:25000;
+  setStatus('Conectando ao servidor e capturando '+url.hostname+' ('+(mode==='advanced'?'Playwright':'HTML público')+'). Aguarde...');
+  const timer=setTimeout(()=>aborter.abort(),timeout);
+  try{
+    const response=await fetch('/api/scrape',{method:'POST',signal:aborter.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({url:url.href,mode})});
+    if(!response.ok){
+      const text=await response.text();let error;
+      try{error=JSON.parse(text).error;}catch{error=text.slice(0,240);}
+      throw new Error(error||'Erro HTTP '+response.status);
     }
-
-    function setDesignSubMode(sub) {
-      document.getElementById("aiDesignBox").classList.toggle("hidden", sub !== "ai");
-      document.getElementById("manualDesignBox").classList.toggle("hidden", sub !== "manual");
-    }
-
-    function applyAiDesignPreset(preset) {
-      const map = {
-        luxury: ["#b45309", "#d97706", "#0f172a", "'Playfair Display', serif", "8px", true],
-        modern: ["#4f46e5", "#0ea5e9", "#f8fafc", "'Inter', sans-serif", "20px", false],
-        minimal: ["#3f6212", "#65a30d", "#fafaf9", "'Montserrat', sans-serif", "0px", false]
-      };
-      applyThemeToClone(...(map[preset] || map.modern));
-    }
-
-    function generateDesignFromPrompt() {
-      if (capturedHtml) { alert("O redesign da página capturada ainda não está implementado. A captura inicial preserva o HTML e o estilo original."); return; }
-      applyThemeToClone("#7c3aed", "#10b981", "#090d16", "'Montserrat', sans-serif", "18px", true);
-    }
-
-    function updateCloneDesignLive() {
-      const p = document.getElementById("customPrimaryColor").value;
-      const a = document.getElementById("customAccentColor").value;
-      const bg = document.getElementById("customBgColor").value;
-      const font = document.getElementById("customFontSelect").value;
-      const isDark = parseInt(bg.replace("#", ""), 16) < 0x555555;
-      applyThemeToClone(p, a, bg, font, "16px", isDark);
-    }
-
-    function applyThemeToClone(primary, accent, bg, font, radius, isDark) {
-      activeThemeConfig = { primary, accent, bg, font, radius, isDark };
-      const canvas = document.getElementById("clonedSiteCanvas");
-      canvas.style.backgroundColor = bg;
-      canvas.style.color = isDark ? "#f8fafc" : "#0f172a";
-      canvas.style.fontFamily = font;
-      document.getElementById("clonedLogoBadge").style.backgroundColor = primary;
-      document.getElementById("clonedHero").style.background = `linear-gradient(135deg, ${primary} 0%, ${accent} 100%)`;
-      renderClonedCards();
-    }
-
-    function filterClonedSite(tipo) {
-      activeCloneFilter = tipo;
-      renderClonedCards();
-    }
-
-    function renderClonedCards() {
-      const grid = document.getElementById("clonedCardsGrid");
-      const q = (document.getElementById("cloneSearchInput")?.value || "").toLowerCase();
-      const list = SCRAPED_PROPERTIES.filter(i => (activeCloneFilter === "todos" || i.tipo === activeCloneFilter) && (!q || i.titulo.toLowerCase().includes(q) || i.bairro.toLowerCase().includes(q)));
-
-      grid.innerHTML = list.map(item => `
-        <div class="overflow-hidden border shadow-sm flex flex-col justify-between" style="background:${activeThemeConfig.isDark ? '#1e293b' : '#fff'}; border-color:${activeThemeConfig.isDark ? '#334155' : '#e2e8f0'}; border-radius:${activeThemeConfig.radius}">
-          <div>
-            <div class="relative h-44 overflow-hidden cursor-pointer" onclick="openGalleryModal(${item.id})">
-              <img src="${item.fotos[0]}" class="w-full h-full object-cover" />
-              <span class="absolute top-2.5 left-2.5 px-2 py-0.5 rounded text-[10px] font-bold uppercase text-white" style="background:${item.tipo === 'venda' ? activeThemeConfig.primary : activeThemeConfig.accent}">${item.tipo}</span>
-              <span class="absolute bottom-2.5 right-2.5 px-2 py-0.5 rounded bg-black/75 text-white text-[10px] font-mono">10 fotos</span>
-            </div>
-            <div class="p-4 space-y-1">
-              <div class="text-[11px] font-bold uppercase" style="color:${activeThemeConfig.primary}">${item.bairro}</div>
-              <h3 class="font-bold text-sm">${item.titulo}</h3>
-              <p class="text-xs opacity-75">${item.endereco}</p>
-            </div>
-          </div>
-          <div class="p-4 pt-2 border-t flex items-center justify-between" style="border-color:${activeThemeConfig.isDark ? '#334155' : '#e2e8f0'}">
-            <span class="font-extrabold text-sm">${item.preco}</span>
-            <button onclick="openGalleryModal(${item.id})" class="px-3 py-1.5 rounded text-xs font-semibold text-white cursor-pointer" style="background:${activeThemeConfig.accent}">Ver 10 Fotos</button>
-          </div>
-        </div>
-      `).join("");
-    }
-
-    function openGalleryModal(id) {
-      currentModalProp = SCRAPED_PROPERTIES.find(p => p.id === id);
-      if (!currentModalProp) return;
-      document.getElementById("modalPropFolder").textContent = `/imoveis/${currentModalProp.tipo}/${currentModalProp.codigo}/`;
-      document.getElementById("modalPropTitle").textContent = currentModalProp.titulo;
-      document.getElementById("photoGalleryModal").classList.remove("hidden");
-      selectModalPhoto(0);
-    }
-
-    function closeGalleryModal() {
-      document.getElementById("photoGalleryModal").classList.add("hidden");
-    }
-
-    function selectModalPhoto(idx) {
-      document.getElementById("modalMainImg").src = currentModalProp.fotos[idx];
-      document.getElementById("modalPhotoCounter").textContent = `Foto ${idx + 1} de 10 (foto_${String(idx + 1).padStart(2, "0")}.jpg)`;
-      document.getElementById("modalThumbnails").innerHTML = currentModalProp.fotos.map((f, i) => `
-        <img src="${f}" onclick="selectModalPhoto(${i})" class="h-10 w-full object-cover rounded cursor-pointer border-2 ${i === idx ? 'border-indigo-500' : 'border-transparent opacity-50'}" />
-      `).join("");
-    }
-
-    async function downloadFullProjectZip() {
-      if (!window.lastCaptureZip) {
-        alert("Primeiro clique em Raspar & Clonar para gerar um projeto.");
-        return;
-      }
-      const a = document.createElement("a");
-      const url=URL.createObjectURL(window.lastCaptureZip);
-      a.href=url;
-      a.download="sitecloner-projeto.zip";
-      a.click();
-      setTimeout(()=>URL.revokeObjectURL(url),60000);
-    }
-
-    function goToActiveClone() {
-      switchTab("clone");
-      document.getElementById("clonedSiteCanvas").scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-
-    async function runFullClone() {
-      const status = document.getElementById("cloneStatus");
-      let url;
-      try {
-        url = new URL(document.getElementById("targetUrlInput").value.trim());
-        if (!["http:","https:"].includes(url.protocol)) throw new Error();
-      } catch {
-        status.textContent = "Informe uma URL válida (https://...).";
-        return;
-      }
-      const btn = document.getElementById("runCloneButton");
-      btn.disabled = true;
-      btn.textContent = "Capturando páginas...";
-      status.textContent = "Abrindo o navegador remoto e reunindo HTML, CSS, JavaScript e imagens. Pode levar até um minuto.";
-      goToActiveClone();
-      const controller = new AbortController();
-      const timer = setTimeout(()=>controller.abort(), document.getElementById("captureEngineSelect").value==="advanced" ? 65000 : 22000);
-      try {
-        const response = await fetch("/api/scrape",{
-          method:"POST",headers:{"Content-Type":"application/json"},signal:controller.signal,body:JSON.stringify({url:url.href,mode:document.getElementById("captureEngineSelect").value})
-        });
-        if (!response.ok) {
-          const err = await response.json().catch(()=>({error:"Erro HTTP "+response.status}));
-          throw new Error(err.error || "Captura indisponível");
-        }
-        const bytes = await response.arrayBuffer();
-        const zip = await JSZip.loadAsync(bytes);
-        const manifest = JSON.parse(await zip.file("captura.json").async("string"));
-        const html = await zip.file("index.html").async("string");
-        const prepared = html.replace(/(?:src|href)="assets\//g,match=>match);
-        const doc = new DOMParser().parseFromString(prepared,"text/html");
-        const files = Object.keys(zip.files).filter(x=>x.startsWith("assets/")&&!zip.files[x].dir);
-        for (const name of files) {
-          const blob=await zip.file(name).async("blob");
-          const blobUrl=URL.createObjectURL(blob);
-          doc.querySelectorAll("[src],[href]").forEach(el=>{
-            for(const attr of ["src","href"]){
-              if(el.getAttribute(attr)===name)el.setAttribute(attr,blobUrl);
-            }
-          });
-        }
-        doc.querySelectorAll("script").forEach(el=>el.remove());
-        capturedHtml = "<!DOCTYPE html>\n"+doc.documentElement.outerHTML;
-        capturedMeta = manifest;
-        window.lastCaptureZip = new Blob([bytes],{type:"application/zip"});
-        document.getElementById("emptyState").classList.add("hidden");
-        const frame=document.getElementById("capturedPreview");
-        frame.classList.remove("hidden");
-        frame.srcdoc=capturedHtml;
-        const bar=document.getElementById("captureResultStatus");
-        bar.classList.remove("hidden");
-        bar.textContent = "Captura concluída: "+manifest.pages.filter(p=>p.file).length+" páginas e "+manifest.assetsSaved+" arquivos. Clique em Baixar ZIP Local para exportar.";
-      } catch(e) {
-        status.textContent = "Falha na captura: "+(e.name==="AbortError" ? "tempo limite excedido. Tente o modo rápido ou outro site." : e.message);
-      } finally {
-        clearTimeout(timer);
-        btn.disabled=false;
-        btn.innerHTML='<i class="fa-solid fa-bolt mr-1"></i> Raspar & Clonar';
-      }
-    }
-
-    window.addEventListener("DOMContentLoaded", () => {
-      renderClonedCards();
-    });
-  </script>
-</body>
-</html>
+    const body=await response.blob();
+    const contentType=response.headers.get('content-type')||'';
+    if(!contentType.includes('zip')||body.size<50)throw new Error('O servidor não retornou um ZIP válido.');
+    lastZip=body;
+    $('downloadBtn').disabled=false;$('previewBtn').disabled=false;
+    $('details').classList.remove('hidden');
+    $('projectTitle').textContent='Captura disponível para download';
+    $('projectInfo').textContent='Origem: '+url.href+' • ZIP: '+(body.size/1024).toFixed(1)+' KB • Motor: '+mode+'.';
+    setStatus('Captura finalizada. Clique em Baixar ZIP para receber o projeto.','success');
+  }catch(e){
+    const msg=e.name==='AbortError'?'A captura excedeu o tempo limite. Tente o modo Rápido ou um site menor.':e.message;
+    setStatus('Falha na captura: '+msg,'error');
+  }finally{clearTimeout(timer);inProgress=false;aborter=null;$('cloneBtn').disabled=false;$('cloneBtn').textContent='Raspar & Clonar';}
+}
+$('cloneBtn').addEventListener('click',clone);
+$('resetBtn').addEventListener('click',clearResult);
+$('downloadBtn').addEventListener('click',download);
+$('saveBtn').addEventListener('click',download);
+$('previewBtn').addEventListener('click',preview);
+$('viewBtn').addEventListener('click',preview);
+$('targetUrl').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();clone();}});
+window.addEventListener('unhandledrejection',e=>{setStatus('Erro inesperado: '+String(e.reason?.message||e.reason),'error');});
+})();
+</script>
+</body></html>
