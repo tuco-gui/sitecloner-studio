@@ -91,6 +91,14 @@
         </div>
       </div>
 
+      <div class="flex flex-wrap items-center gap-3 text-xs text-slate-300">
+        <label for="captureEngineSelect" class="font-semibold">Motor de captura</label>
+        <select id="captureEngineSelect" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white">
+          <option value="basic">Rápido (HTML público, até 15s)</option>
+          <option value="advanced">Avançado (Playwright, até 60s)</option>
+        </select>
+        <span class="text-slate-400">O modo rápido depende de CSS e imagens externos. O modo avançado tenta exportar os arquivos.</span>
+      </div>
       <!-- MODE SWITCHER -->
       <div class="pt-4 border-t border-slate-800 flex flex-wrap items-center justify-between gap-4">
         <div class="flex items-center gap-2 bg-slate-950 p-1 rounded-xl border border-slate-800">
@@ -420,9 +428,11 @@ git push origin main</pre>
       btn.textContent = "Capturando páginas...";
       status.textContent = "Abrindo o navegador remoto e reunindo HTML, CSS, JavaScript e imagens. Pode levar até um minuto.";
       goToActiveClone();
+      const controller = new AbortController();
+      const timer = setTimeout(()=>controller.abort(), document.getElementById("captureEngineSelect").value==="advanced" ? 65000 : 22000);
       try {
         const response = await fetch("/api/scrape",{
-          method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url:url.href})
+          method:"POST",headers:{"Content-Type":"application/json"},signal:controller.signal,body:JSON.stringify({url:url.href,mode:document.getElementById("captureEngineSelect").value})
         });
         if (!response.ok) {
           const err = await response.json().catch(()=>({error:"Erro HTTP "+response.status}));
@@ -456,8 +466,9 @@ git push origin main</pre>
         bar.classList.remove("hidden");
         bar.textContent = "Captura concluída: "+manifest.pages.filter(p=>p.file).length+" páginas e "+manifest.assetsSaved+" arquivos. Clique em Baixar ZIP Local para exportar.";
       } catch(e) {
-        status.textContent = "Falha na captura: "+e.message;
+        status.textContent = "Falha na captura: "+(e.name==="AbortError" ? "tempo limite excedido. Tente o modo rápido ou outro site." : e.message);
       } finally {
+        clearTimeout(timer);
         btn.disabled=false;
         btn.innerHTML='<i class="fa-solid fa-bolt mr-1"></i> Raspar & Clonar';
       }
