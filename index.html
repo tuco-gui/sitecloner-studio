@@ -71,7 +71,7 @@
           <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">URL do Site Alvo</label>
           <div class="relative">
             <i class="fa-solid fa-globe absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500"></i>
-            <input id="targetUrlInput" type="text" value="https://www.realizeimobi.imb.br/imoveis/botucatu-sp" 
+            <input id="targetUrlInput" type="text" value="" placeholder="https://exemplo.com.br" 
               class="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white font-mono focus:outline-none focus:border-indigo-500" />
           </div>
         </div>
@@ -164,9 +164,17 @@
     </div>
 
     <!-- TAB 1: CLONE ATIVO -->
-    <section id="tabContent-clone" class="space-y-4">
+    <section id="tabContent-clone" class="space-y-4">\n      <p id="captureResultStatus" class="hidden bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-emerald-300"></p>
       <div class="border border-slate-700 rounded-2xl overflow-hidden shadow-2xl bg-white text-slate-900">
         <div id="clonedSiteCanvas" class="min-h-[600px] transition-all duration-300" style="background-color: #f8fafc; color: #0f172a;">
+          <div id="emptyState" class="min-h-[600px] flex flex-col justify-center items-center gap-4 text-center px-6">
+            <i class="fa-solid fa-globe text-5xl text-indigo-500"></i>
+            <h2 class="text-xl font-extrabold">Nenhum site capturado</h2>
+            <p class="text-slate-500 max-w-md text-sm">Insira o endereço do site acima e clique em Raspar & Clonar para iniciar um projeto.</p>
+            <p id="cloneStatus" class="text-xs text-slate-500" role="status" aria-live="polite"></p>
+          </div>
+          <iframe id="capturedPreview" title="Prévia do site capturado" sandbox="" class="hidden w-full min-h-[650px] bg-white" referrerpolicy="no-referrer"></iframe>
+          <div id="legacyCatalog" class="hidden">
           <nav id="clonedNavbar" class="border-b border-slate-200 bg-white px-6 py-4 flex flex-wrap items-center justify-between gap-4">
             <div class="flex items-center gap-3">
               <div id="clonedLogoBadge" class="w-10 h-10 rounded-lg flex items-center justify-center font-extrabold text-white bg-indigo-600">RI</div>
@@ -193,7 +201,7 @@
           <div class="p-6 max-w-6xl mx-auto">
             <div id="clonedCardsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
           </div>
-        </div>
+        </div>\n          </div>
       </div>
     </section>
 
@@ -256,46 +264,10 @@ git push origin main</pre>
   </div>
 
   <script>
-    const PHOTO_POOL = [
-      "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=900&q=80",
-      "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=900&q=80",
-      "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=900&q=80",
-      "https://images.unsplash.com/photo-1600566753376-12c8ab7fb75b?auto=format&fit=crop&w=900&q=80",
-      "https://images.unsplash.com/photo-1600585154526-990dced4db0d?auto=format&fit=crop&w=900&q=80",
-      "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=900&q=80",
-      "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=900&q=80",
-      "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=900&q=80",
-      "https://images.unsplash.com/photo-1600573472589-003525b2b729?auto=format&fit=crop&w=900&q=80",
-      "https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?auto=format&fit=crop&w=900&q=80"
-    ];
-
-    function build10Photos(offset) {
-      return Array.from({ length: 10 }, (_, i) => PHOTO_POOL[(i + offset) % PHOTO_POOL.length]);
-    }
-
-    const SCRAPED_PROPERTIES = [
-      { id: 1, codigo: "imovel_01", tipo: "venda", titulo: "Apto no Parque dos Pinheiros (Cond. Bulgária)", bairro: "Parque dos Pinheiros", endereco: "Rua Mário Spera, 408", preco: "R$ 205.000", desc: "2 dormitórios, porcelanato, armários planejados e portaria 24h.", fotos: build10Photos(0) },
-      { id: 2, codigo: "imovel_02", tipo: "venda", titulo: "Apto na Vila Juliana (Residencial Brunello)", bairro: "Vila Juliana", endereco: "Avenida Itália, 298", preco: "R$ 210.000", desc: "Sala e cozinha integradas, bancadas em mármore e vaga coberta.", fotos: build10Photos(1) },
-      { id: 3, codigo: "imovel_03", tipo: "venda", titulo: "Apto Mobiliado no Jardim Paraíso (Parque Bavaria)", bairro: "Jardim Paraíso", endereco: "Rua Dr. José Barbosa de Barros, 1630", preco: "R$ 210.000", desc: "47m² mobiliado, armários planejados, churrasqueira e salão.", fotos: build10Photos(2) },
-      { id: 4, codigo: "imovel_04", tipo: "venda", titulo: "Apto Residencial Brunello II - Vila Juliana", bairro: "Vila Juliana", endereco: "Avenida Itália, 298", preco: "R$ 215.000", desc: "2 dormitórios, mini mercado no condomínio e playground.", fotos: build10Photos(3) },
-      { id: 5, codigo: "imovel_05", tipo: "venda", titulo: "Apartamento Conjunto Residencial Frei Fidelis", bairro: "Frei Fidelis", endereco: "Rua Nicola Zaponi, 1437", preco: "R$ 220.000", desc: "39m², 2 dormitórios arejados e vaga exclusiva.", fotos: build10Photos(4) },
-      { id: 6, codigo: "imovel_06", tipo: "venda", titulo: "Apto com Suíte no Jardim Bom Pastor", bairro: "Jardim Bom Pastor", endereco: "Rua Mário Lopes Leão, 6", preco: "R$ 265.000", desc: "70m² úteis com 2 quartos sendo 1 suíte.", fotos: build10Photos(5) },
-      { id: 7, codigo: "imovel_07", tipo: "venda", titulo: "Casa Térrea Moderna no Jardim Paraíso", bairro: "Jardim Paraíso", endereco: "Rua Major Matheus, 890", preco: "R$ 420.000", desc: "3 dormitórios, área gourmet com churrasqueira e 2 vagas.", fotos: build10Photos(6) },
-      { id: 8, codigo: "imovel_08", tipo: "venda", titulo: "Conjunto de Kitnets para Renda (Cohab 1)", bairro: "Humberto Popolo", endereco: "Conjunto Flavio Américo", preco: "R$ 489.000", desc: "200m² construídos ideais para renda de locação.", fotos: build10Photos(7) },
-      { id: 9, codigo: "imovel_09", tipo: "venda", titulo: "Sobrado Alto Padrão na Vila Assumpção", bairro: "Vila Assumpção", endereco: "Rua Cardoso de Almeida, 1420", preco: "R$ 680.000", desc: "3 suítes, piscina aquecida e energia solar.", fotos: build10Photos(8) },
-      { id: 10, codigo: "imovel_10", tipo: "venda", titulo: "Residência Condomínio Vale do Sol", bairro: "Vale do Sol", endereco: "Alameda das Hortênsias, 115", preco: "R$ 950.000", desc: "4 suítes, pé direito duplo e lazer completo.", fotos: build10Photos(9) },
-      { id: 11, codigo: "imovel_01", tipo: "locacao", titulo: "Conjunto de 4 Salas Comerciais no Centro", bairro: "Centro", endereco: "Rua Djalma Dutra, 318", preco: "R$ 1.650/mês", desc: "35m² no coração de Botucatu com 4 salas e alarme.", fotos: build10Photos(2) },
-      { id: 12, codigo: "imovel_02", tipo: "locacao", titulo: "Apartamento Novo na Chácara dos Pinheiros", bairro: "Jardim Santa Thereza", endereco: "Rua João Dias Cordeiro, 119", preco: "R$ 2.200/mês", desc: "60m², 2 dormitórios (1 suíte) e 2 vagas cobertas.", fotos: build10Photos(4) },
-      { id: 13, codigo: "imovel_03", tipo: "locacao", titulo: "Casa Espaçosa na Vila dos Lavradores", bairro: "Vila dos Lavradores", endereco: "Rua Cruz Pereira, 74", preco: "R$ 2.500/mês", desc: "300m², 3 quartos, 2 salas e amplo quintal.", fotos: build10Photos(6) },
-      { id: 14, codigo: "imovel_04", tipo: "locacao", titulo: "Casa Recém-Construída no Central Parque", bairro: "Central Parque", endereco: "Rua Augusto Mazzoni, 460", preco: "R$ 2.500/mês", desc: "Construída em 2024, 3 dormitórios (1 suíte) e porcelanato.", fotos: build10Photos(8) },
-      { id: 15, codigo: "imovel_05", tipo: "locacao", titulo: "Studio Comercial / Galpão na Vila Maria", bairro: "Vila Maria", endereco: "Rua Cel. Joaquim Leandro de Oliveira, 282", preco: "R$ 2.900/mês", desc: "220m² de vão livre para clínica, estúdio ou comércio.", fotos: build10Photos(1) },
-      { id: 16, codigo: "imovel_06", tipo: "locacao", titulo: "Sala Corporativa 130m² no Centro", bairro: "Centro", endereco: "Rua Siqueira Campos, 201", preco: "R$ 4.000/mês", desc: "4 salas amplas, recepção e sala de reuniões.", fotos: build10Photos(3) },
-      { id: 17, codigo: "imovel_07", tipo: "locacao", titulo: "Casa Próxima ao Colégio Santa Marcelina", bairro: "Centro", endereco: "Rua Djalma Dutra, 734", preco: "R$ 4.500/mês", desc: "4 dormitórios, 3 banheiros e 2 salas.", fotos: build10Photos(5) },
-      { id: 18, codigo: "imovel_08", tipo: "locacao", titulo: "Studio Próximo à UNESP Rubião", bairro: "Rubião Junior", endereco: "Av. Bento Lopes, 512", preco: "R$ 1.450/mês", desc: "Ideal para estudantes e residentes a 3 min da UNESP.", fotos: build10Photos(7) },
-      { id: 19, codigo: "imovel_09", tipo: "locacao", titulo: "Casa com Área Gourmet no Jardim Paraíso", bairro: "Jardim Paraíso", endereco: "Rua Dr. Costa Leite, 1910", preco: "R$ 3.200/mês", desc: "3 dormitórios (2 suítes) e churrasqueira.", fotos: build10Photos(9) },
-      { id: 20, codigo: "imovel_10", tipo: "locacao", titulo: "Ponto Comercial na Vila dos Lavradores", bairro: "Vila dos Lavradores", endereco: "Rua Major Matheus, 410", preco: "R$ 5.500/mês", desc: "Esquina comercial com vitrine dupla e 3 vagas.", fotos: build10Photos(0) }
-    ];
-
+    const PHOTO_POOL = [];
+    const SCRAPED_PROPERTIES = [];
+    let capturedHtml = "";
+    let capturedMeta = null;
     let activeCloneFilter = "todos";
     let activeThemeConfig = { primary: "#4f46e5", accent: "#10b981", bg: "#f8fafc", font: "'Inter', sans-serif", radius: "16px", isDark: false };
     let currentModalProp = null;
@@ -338,7 +310,7 @@ git push origin main</pre>
       applyThemeToClone(...(map[preset] || map.modern));
     }
 
-    function generateDesignFromPrompt() {
+    function generateDesignFromPrompt() {\n      if (capturedHtml) { alert("O redesign da página capturada ainda não está implementado. A captura inicial preserva o HTML e o estilo original."); return; }
       applyThemeToClone("#7c3aed", "#10b981", "#090d16", "'Montserrat', sans-serif", "18px", true);
     }
 
@@ -416,6 +388,18 @@ git push origin main</pre>
     }
 
     async function downloadFullProjectZip() {
+      if (!capturedHtml) { alert("Primeiro capture um site para gerar o ZIP."); return; }
+      const zip = new JSZip();
+      zip.file("index.html", capturedHtml);
+      zip.file("captura.json", JSON.stringify(capturedMeta, null, 2));
+      const blob = await zip.generateAsync({type: "blob"});
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "sitecloner-captura.zip";
+      a.click();
+      URL.revokeObjectURL(a.href);
+      return;
+
       const zip = new JSZip();
       const root = zip.folder("sitecloner-studio");
       root.file("index.html", "<!DOCTYPE html>\n" + document.documentElement.outerHTML);
@@ -436,18 +420,40 @@ git push origin main</pre>
       document.getElementById("clonedSiteCanvas").scrollIntoView({ behavior: "smooth", block: "start" });
     }
 
-    function runFullClone() {
+    async function runFullClone() {
       const url = document.getElementById("targetUrlInput").value.trim();
+      const state = document.getElementById("cloneStatus");
       let parsed;
       try {
         parsed = new URL(url);
         if (!["http:", "https:"].includes(parsed.protocol)) throw new Error("invalid");
       } catch (_) {
-        alert("Informe uma URL válida começando por https://");
+        state.textContent = "Informe uma URL válida, começando por https://";
         return;
       }
-      alert("O catálogo exibido é uma demonstração com dados pré-carregados e fotos ilustrativas. A raspagem real desta URL ainda requer integração com um serviço de backend. Nenhum site foi clonado nesta operação.");
+      state.textContent = "Capturando a página. Aguarde...";
       goToActiveClone();
+      try {
+        const response = await fetch("/api/scrape", {
+          method: "POST", headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({url: parsed.href})
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Falha na captura");
+        capturedHtml = result.html;
+        capturedMeta = {url:result.url, title:result.title, links:result.links, images:result.images, fetchedAt:new Date().toISOString()};
+        document.getElementById("emptyState").classList.add("hidden");
+        const frame = document.getElementById("capturedPreview");
+        frame.classList.remove("hidden");
+        frame.srcdoc = capturedHtml;
+        const bar = document.getElementById("captureResultStatus");
+        bar.classList.remove("hidden");
+        bar.textContent = "Página capturada: " + (result.title || result.url) + " • " + result.images + " imagens • " + result.links + " links. Scripts interativos não são reproduzidos nesta prévia.";
+      } catch (err) {
+        document.getElementById("emptyState").classList.remove("hidden");
+        document.getElementById("capturedPreview").classList.add("hidden");
+        state.textContent = "Erro: " + err.message;
+      }
     }
 
     window.addEventListener("DOMContentLoaded", () => {
