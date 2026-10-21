@@ -55,6 +55,54 @@ module.exports = async (req,res) => {
   let browser;
   try {
     const entry=await checkUrl(req.body?.url);
+
+    if (req.body?.mode !== 'advanced') {
+      const zip = new JSZip();
+      const controller = new AbortController();
+      const timeout = setTimeout(()=>controller.abort(),14000);
+      try {
+        let next=entry, response;
+        for(let redirect=0;redirect<4;redirect++){
+          await checkUrl(next.href);
+          response=await fetch(next.href,{signal:controller.signal,redirect:'manual',headers:{'User-Agent':'Mozilla/5.0 SiteCloner Studio','Accept':'text/html'}});
+          if([301,302,303,307,308].includes(response.status)){
+            next=await checkUrl(new URL(response.headers.get('location'),next).href);
+            continue;
+          }
+          break;
+        }
+        if(!response?.ok)throw new Error('HTTP '+(response?.status||'sem resposta'));
+        if(!/text\/html/i.test(response.headers.get('content-type')||''))throw new Error('A resposta não é HTML');
+        const length=Number(response.headers.get('content-length')||0);
+        if(length>2000000)throw new Error('HTML ultrapassa 2 MB');
+        const text=await response.text();
+        if(text.length>2000000)throw new Error('HTML ultrapassa 2 MB');
+        const $=cheerio.load(text);
+        $('base,meta[http-equiv="refresh"]').remove();
+        $('script,iframe,object,embed').remove();
+        $('*').each((_,el)=>{
+          for(const key of Object.keys(el.attribs||{})){
+            if(key.toLowerCase().startsWith('on'))$(el).removeAttr(key);
+            if(['href','src','poster'].includes(key)){
+              const val=$(el).attr(key);
+              try {
+                const absolute=new URL(val,next).href;
+                if(/^https?:/.test(absolute))$(el).attr(key,absolute);
+                else $(el).removeAttr(key);
+              }catch {$(el).removeAttr(key)}
+            }
+          }
+        });
+        const output='<!DOCTYPE html>\n'+$.html();
+        zip.file('index.html',output);
+        zip.file('captura.json',JSON.stringify({source:next.href,createdAt:new Date().toISOString(),pages:[{url:next.href,file:'index.html',title:$('title').text().slice(0,150)}],assetsSaved:0,assetErrors:[],mode:'basic',limitations:['Captura básica sem navegador: CSS e imagens permanecem como referências externas','Para captura avançada selecione Playwright; recursos de sites protegidos podem falhar']},null,2));
+        const payload=await zip.generateAsync({type:'nodebuffer',compression:'DEFLATE'});
+        res.setHeader('Content-Type','application/zip');
+        res.setHeader('Content-Disposition','attachment; filename="sitecloner-basico.zip"');
+        return res.status(200).send(payload);
+      } finally {clearTimeout(timeout);}
+    }
+
     const origin=entry.origin;
     const zip=new JSZip();
     const start=Date.now();
