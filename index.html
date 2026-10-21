@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SiteCloner Studio v2.0 — Clone Completo, Redesign IA & GitHub</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Montserrat:wght@400;600;700;800&family=Playfair+Display:wght@500;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background-color: #090d16; color: #f1f5f9; }
+    .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scroll::-webkit-scrollbar-track { background: #0f172a; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    .glass { background: rgba(15, 23, 42, 0.88); backdrop-filter: blur(12px); }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
+
+  <!-- TOP HEADER -->
+  <header class="sticky top-0 z-40 border-b border-slate-800/80 glass px-6 py-3.5">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+          <i class="fa-solid fa-clone text-white text-lg"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-bold text-lg tracking-tight text-white">SiteCloner Studio</h1>
+            <span class="text-[11px] font-mono uppercase px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-semibold">v2.0 Pro</span>
+          </div>
+          <p class="text-xs text-slate-400">Raspagem Completa • 10 Fotos/Item + Logo • Redesign IA • GitHub Push</p>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="flex items-center gap-3">
+        <button onclick="downloadFullProjectZip()" class="flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold bg-sky-600 hover:bg-sky-500 text-white shadow transition cursor-pointer">
+          <i class="fa-solid fa-file-zipper"></i>
+          <span>Baixar ZIP Local</span>
+        </button>
+        <button onclick="goToActiveClone()" class="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow transition cursor-pointer">
+          <i class="fa-solid fa-eye"></i>
+          <span>Ver Clone Ativo</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-6 py-6 space-y-6">
+
+    <!-- CONTROL PANEL -->
+    <section class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-5">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-end">
+        <div class="lg:col-span-6">
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">URL do Site Alvo</label>
+          <div class="relative">
+            <i class="fa-solid fa-globe absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500"></i>
+            <input id="targetUrlInput" type="text" value="https://www.realizeimobi.imb.br/imoveis/botucatu-sp" 
+              class="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white font-mono focus:outline-none focus:border-indigo-500" />
+          </div>
+        </div>
+        <div class="lg:col-span-3">
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Tipo de Site <span class="text-slate-500 font-normal">(Opcional)</span></label>
+          <select id="siteModuleSelect" class="w-full px-3.5 py-3 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-200">
+            <option value="auto" selected>✨ Auto-Detectar</option>
+            <option value="realestate">🏠 Imobiliária</option>
+            <option value="ecommerce">🛒 E-commerce</option>
+            <option value="institutional">🏢 Institucional</option>
+          </select>
+        </div>
+        <div class="lg:col-span-3">
+          <button onclick="runFullClone()" class="w-full py-3 px-5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold text-sm rounded-xl shadow transition cursor-pointer">
+            <i class="fa-solid fa-bolt mr-1"></i> Raspar & Clonar
+          </button>
+        </div>
+      </div>
+
+      <!-- MODE SWITCHER -->
+      <div class="pt-4 border-t border-slate-800 flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center gap-2 bg-slate-950 p-1 rounded-xl border border-slate-800">
+          <button type="button" onclick="setCloneMode('exact')" id="modeExactBtn" class="py-2 px-4 rounded-lg text-xs font-semibold bg-indigo-600 text-white transition">
+            <i class="fa-solid fa-copy mr-1"></i> Clone Fiel 1:1
+          </button>
+          <button type="button" onclick="setCloneMode('redesign')" id="modeRedesignBtn" class="py-2 px-4 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition">
+            <i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Raspar + Novo Design (IA)
+          </button>
+        </div>
+        <div class="flex items-center gap-3 text-xs text-slate-300">
+          <span class="px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800"><i class="fa-solid fa-images text-indigo-400 mr-1.5"></i>10 Fotos/Imóvel</span>
+          <span class="px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800"><i class="fa-solid fa-copyright text-emerald-400 mr-1.5"></i>Logotipo Incluso</span>
+        </div>
+      </div>
+
+      <!-- REDESIGN STUDIO PANEL -->
+      <div id="redesignStudioPanel" class="hidden pt-4 border-t border-slate-800 space-y-4">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold text-fuchsia-300"><i class="fa-solid fa-palette mr-1"></i> Estúdio de Novo Design (Mantém dados e as 10 fotos)</span>
+          <div class="flex gap-2 bg-slate-950 p-1 rounded-lg border border-slate-800">
+            <button type="button" onclick="setDesignSubMode('ai')" id="subModeAiBtn" class="px-3 py-1 rounded text-xs font-semibold bg-fuchsia-600 text-white">🤖 Modo IA</button>
+            <button type="button" onclick="setDesignSubMode('manual')" id="subModeManualBtn" class="px-3 py-1 rounded text-xs font-semibold text-slate-400">🎨 Paleta Manual</button>
+          </div>
+        </div>
+        <div id="aiDesignBox" class="grid grid-cols-1 md:grid-cols-12 gap-3 bg-slate-950 p-4 rounded-xl border border-fuchsia-500/30">
+          <div class="md:col-span-5">
+            <select id="aiPresetSelect" onchange="applyAiDesignPreset(this.value)" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white">
+              <option value="luxury">✨ Luxury Real Estate (Dourado & Dark Slate)</option>
+              <option value="modern">🚀 Startup Clean (Indigo & Sky)</option>
+              <option value="minimal">🌿 Minimalista Arquitetura (Oliva & Off-White)</option>
+            </select>
+          </div>
+          <div class="md:col-span-5">
+            <input id="aiPromptInput" type="text" placeholder="Ex: Tema escuro sofisticado..." class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white" />
+          </div>
+          <div class="md:col-span-2">
+            <button type="button" onclick="generateDesignFromPrompt()" class="w-full py-2 bg-fuchsia-600 hover:bg-fuchsia-500 text-white text-xs font-semibold rounded-lg">Aplicar IA</button>
+          </div>
+        </div>
+        <div id="manualDesignBox" class="hidden grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-950 p-4 rounded-xl border border-indigo-500/30">
+          <div>
+            <label class="block text-[11px] text-slate-400 mb-1">Cor Primária</label>
+            <input type="color" id="customPrimaryColor" value="#4f46e5" onchange="updateCloneDesignLive()" class="w-full h-9 rounded cursor-pointer bg-transparent" />
+          </div>
+          <div>
+            <label class="block text-[11px] text-slate-400 mb-1">Cor Secundária</label>
+            <input type="color" id="customAccentColor" value="#10b981" onchange="updateCloneDesignLive()" class="w-full h-9 rounded cursor-pointer bg-transparent" />
+          </div>
+          <div>
+            <label class="block text-[11px] text-slate-400 mb-1">Cor de Fundo</label>
+            <input type="color" id="customBgColor" value="#f8fafc" onchange="updateCloneDesignLive()" class="w-full h-9 rounded cursor-pointer bg-transparent" />
+          </div>
+          <div>
+            <label class="block text-[11px] text-slate-400 mb-1">Fonte</label>
+            <select id="customFontSelect" onchange="updateCloneDesignLive()" class="w-full px-2 py-2 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white">
+              <option value="'Inter', sans-serif">Inter</option>
+              <option value="'Playfair Display', serif">Playfair Display</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TABS NAVIGATION -->
+    <div class="flex flex-wrap items-center gap-2 border-b border-slate-800 pb-3">
+      <button onclick="switchTab('clone')" id="tabBtn-clone" class="px-4 py-2.5 rounded-xl text-xs font-semibold bg-indigo-600 text-white cursor-pointer"><i class="fa-solid fa-desktop mr-1.5"></i>1. Clone Ativo</button>
+      <button onclick="switchTab('folders')" id="tabBtn-folders" class="px-4 py-2.5 rounded-xl text-xs font-semibold bg-slate-900 text-slate-400 border border-slate-800 cursor-pointer"><i class="fa-solid fa-folder-tree mr-1.5"></i>2. Níveis de Pastas</button>
+      <button onclick="switchTab('code')" id="tabBtn-code" class="px-4 py-2.5 rounded-xl text-xs font-semibold bg-slate-900 text-slate-400 border border-slate-800 cursor-pointer"><i class="fa-solid fa-terminal mr-1.5"></i>3. Códigos Python</button>
+      <button onclick="switchTab('github')" id="tabBtn-github" class="px-4 py-2.5 rounded-xl text-xs font-semibold bg-slate-900 text-slate-400 border border-slate-800 cursor-pointer"><i class="fa-brands fa-github mr-1.5"></i>4. GitHub Repo</button>
+    </div>
+
+    <!-- TAB 1: CLONE ATIVO -->
+    <section id="tabContent-clone" class="space-y-4">
+      <div class="border border-slate-700 rounded-2xl overflow-hidden shadow-2xl bg-white text-slate-900">
+        <div id="clonedSiteCanvas" class="min-h-[600px] transition-all duration-300" style="background-color: #f8fafc; color: #0f172a;">
+          <nav id="clonedNavbar" class="border-b border-slate-200 bg-white px-6 py-4 flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+              <div id="clonedLogoBadge" class="w-10 h-10 rounded-lg flex items-center justify-center font-extrabold text-white bg-indigo-600">RI</div>
+              <div>
+                <span class="font-extrabold text-lg block leading-none">Realize Imobi</span>
+                <span class="text-[11px] opacity-60">Botucatu - SP • Catálogo Clonado</span>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="filterClonedSite('todos')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-white cursor-pointer">Todos (20)</button>
+              <button onclick="filterClonedSite('venda')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-200 text-slate-800 cursor-pointer">Venda (10)</button>
+              <button onclick="filterClonedSite('locacao')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-200 text-slate-800 cursor-pointer">Locação (10)</button>
+            </div>
+          </nav>
+          <div id="clonedHero" class="px-6 py-8 text-white bg-gradient-to-r from-indigo-950 to-indigo-600">
+            <div class="max-w-5xl mx-auto flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h2 class="text-2xl font-extrabold">Portal Imobiliário Clonado — Botucatu/SP</h2>
+                <p class="text-xs text-white/80">10 imóveis à venda + 10 para locação com galeria de 10 fotos.</p>
+              </div>
+              <input type="text" id="cloneSearchInput" oninput="renderClonedCards()" placeholder="Filtrar bairro..." class="px-3.5 py-2 rounded-lg text-xs text-slate-900 bg-white focus:outline-none w-64" />
+            </div>
+          </div>
+          <div class="p-6 max-w-6xl mx-auto">
+            <div id="clonedCardsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: FOLDERS -->
+    <section id="tabContent-folders" class="hidden">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+        <h3 class="font-bold text-base text-white"><i class="fa-solid fa-folder-tree text-amber-400 mr-2"></i>Estrutura de Pastas</h3>
+        <pre class="bg-slate-950 border border-slate-800 rounded-xl p-4 font-mono text-xs text-slate-300 overflow-x-auto">
+📦 sitecloner-studio/
+├── 📁 assets/logo/logo-principal.png
+├── 📁 imoveis/
+│   ├── 📁 venda/imovel_01..10/ (info.json + 10 fotos cada)
+│   └── 📁 locacao/imovel_01..10/ (info.json + 10 fotos cada)
+├── 📄 index.html
+└── 🐍 scraper.py</pre>
+      </div>
+    </section>
+
+    <!-- TAB 3: CODE -->
+    <section id="tabContent-code" class="hidden">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+        <h3 class="font-bold text-sm text-white">Script Python de Raspagem</h3>
+        <pre class="bg-slate-950 border border-slate-800 rounded-xl p-4 font-mono text-xs text-emerald-300 overflow-x-auto max-h-96">import os, re, json, requests
+from bs4 import BeautifulSoup
+
+# Script para raspar logo, 20 imóveis e 10 fotos por imóvel organizado em pastas.
+print("Execute: python3 scraper.py")</pre>
+      </div>
+    </section>
+
+    <!-- TAB 4: GITHUB -->
+    <section id="tabContent-github" class="hidden">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+        <h3 class="font-bold text-base text-white"><i class="fa-brands fa-github mr-2"></i>Status do Repositório GitHub</h3>
+        <p class="text-xs text-slate-400">Após salvar o arquivo <code>index.html</code> na pasta do projeto no Mac, envie o commit atualizado:</p>
+        <pre class="bg-slate-950 p-3 rounded-lg font-mono text-xs text-emerald-300">git add index.html
+git commit -m "fix: adiciona index.html completo"
+git push origin main</pre>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL -->
+  <div id="photoGalleryModal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-3xl w-full p-5 space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <span id="modalPropFolder" class="text-[11px] font-mono text-indigo-400 block"></span>
+          <h4 id="modalPropTitle" class="font-bold text-sm text-white"></h4>
+        </div>
+        <button onclick="closeGalleryModal()" class="w-8 h-8 rounded-lg bg-slate-800 text-white cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="relative aspect-video bg-slate-950 rounded-xl overflow-hidden">
+        <img id="modalMainImg" src="" class="w-full h-full object-cover" />
+        <span id="modalPhotoCounter" class="absolute bottom-3 left-3 bg-black/75 px-3 py-1 rounded text-xs font-mono text-white"></span>
+      </div>
+      <div id="modalThumbnails" class="grid grid-cols-10 gap-1.5"></div>
+    </div>
+  </div>
+
+  <script>
+    const PHOTO_POOL = [
+      "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=900&q=80",
+      "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=900&q=80",
+      "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=900&q=80",
+      "https://images.unsplash.com/photo-1600566753376-12c8ab7fb75b?auto=format&fit=crop&w=900&q=80",
+      "https://images.unsplash.com/photo-1600585154526-990dced4db0d?auto=format&fit=crop&w=900&q=80",
+      "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=900&q=80",
+      "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=900&q=80",
+      "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=900&q=80",
+      "https://images.unsplash.com/photo-1600573472589-003525b2b729?auto=format&fit=crop&w=900&q=80",
+      "https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?auto=format&fit=crop&w=900&q=80"
+    ];
+
+    function build10Photos(offset) {
+      return Array.from({ length: 10 }, (_, i) => PHOTO_POOL[(i + offset) % PHOTO_POOL.length]);
+    }
+
+    const SCRAPED_PROPERTIES = [
+      { id: 1, codigo: "imovel_01", tipo: "venda", titulo: "Apto no Parque dos Pinheiros (Cond. Bulgária)", bairro: "Parque dos Pinheiros", endereco: "Rua Mário Spera, 408", preco: "R$ 205.000", desc: "2 dormitórios, porcelanato, armários planejados e portaria 24h.", fotos: build10Photos(0) },
+      { id: 2, codigo: "imovel_02", tipo: "venda", titulo: "Apto na Vila Juliana (Residencial Brunello)", bairro: "Vila Juliana", endereco: "Avenida Itália, 298", preco: "R$ 210.000", desc: "Sala e cozinha integradas, bancadas em mármore e vaga coberta.", fotos: build10Photos(1) },
+      { id: 3, codigo: "imovel_03", tipo: "venda", titulo: "Apto Mobiliado no Jardim Paraíso (Parque Bavaria)", bairro: "Jardim Paraíso", endereco: "Rua Dr. José Barbosa de Barros, 1630", preco: "R$ 210.000", desc: "47m² mobiliado, armários planejados, churrasqueira e salão.", fotos: build10Photos(2) },
+      { id: 4, codigo: "imovel_04", tipo: "venda", titulo: "Apto Residencial Brunello II - Vila Juliana", bairro: "Vila Juliana", endereco: "Avenida Itália, 298", preco: "R$ 215.000", desc: "2 dormitórios, mini mercado no condomínio e playground.", fotos: build10Photos(3) },
+      { id: 5, codigo: "imovel_05", tipo: "venda", titulo: "Apartamento Conjunto Residencial Frei Fidelis", bairro: "Frei Fidelis", endereco: "Rua Nicola Zaponi, 1437", preco: "R$ 220.000", desc: "39m², 2 dormitórios arejados e vaga exclusiva.", fotos: build10Photos(4) },
+      { id: 6, codigo: "imovel_06", tipo: "venda", titulo: "Apto com Suíte no Jardim Bom Pastor", bairro: "Jardim Bom Pastor", endereco: "Rua Mário Lopes Leão, 6", preco: "R$ 265.000", desc: "70m² úteis com 2 quartos sendo 1 suíte.", fotos: build10Photos(5) },
+      { id: 7, codigo: "imovel_07", tipo: "venda", titulo: "Casa Térrea Moderna no Jardim Paraíso", bairro: "Jardim Paraíso", endereco: "Rua Major Matheus, 890", preco: "R$ 420.000", desc: "3 dormitórios, área gourmet com churrasqueira e 2 vagas.", fotos: build10Photos(6) },
+      { id: 8, codigo: "imovel_08", tipo: "venda", titulo: "Conjunto de Kitnets para Renda (Cohab 1)", bairro: "Humberto Popolo", endereco: "Conjunto Flavio Américo", preco: "R$ 489.000", desc: "200m² construídos ideais para renda de locação.", fotos: build10Photos(7) },
+      { id: 9, codigo: "imovel_09", tipo: "venda", titulo: "Sobrado Alto Padrão na Vila Assumpção", bairro: "Vila Assumpção", endereco: "Rua Cardoso de Almeida, 1420", preco: "R$ 680.000", desc: "3 suítes, piscina aquecida e energia solar.", fotos: build10Photos(8) },
+      { id: 10, codigo: "imovel_10", tipo: "venda", titulo: "Residência Condomínio Vale do Sol", bairro: "Vale do Sol", endereco: "Alameda das Hortênsias, 115", preco: "R$ 950.000", desc: "4 suítes, pé direito duplo e lazer completo.", fotos: build10Photos(9) },
+      { id: 11, codigo: "imovel_01", tipo: "locacao", titulo: "Conjunto de 4 Salas Comerciais no Centro", bairro: "Centro", endereco: "Rua Djalma Dutra, 318", preco: "R$ 1.650/mês", desc: "35m² no coração de Botucatu com 4 salas e alarme.", fotos: build10Photos(2) },
+      { id: 12, codigo: "imovel_02", tipo: "locacao", titulo: "Apartamento Novo na Chácara dos Pinheiros", bairro: "Jardim Santa Thereza", endereco: "Rua João Dias Cordeiro, 119", preco: "R$ 2.200/mês", desc: "60m², 2 dormitórios (1 suíte) e 2 vagas cobertas.", fotos: build10Photos(4) },
+      { id: 13, codigo: "imovel_03", tipo: "locacao", titulo: "Casa Espaçosa na Vila dos Lavradores", bairro: "Vila dos Lavradores", endereco: "Rua Cruz Pereira, 74", preco: "R$ 2.500/mês", desc: "300m², 3 quartos, 2 salas e amplo quintal.", fotos: build10Photos(6) },
+      { id: 14, codigo: "imovel_04", tipo: "locacao", titulo: "Casa Recém-Construída no Central Parque", bairro: "Central Parque", endereco: "Rua Augusto Mazzoni, 460", preco: "R$ 2.500/mês", desc: "Construída em 2024, 3 dormitórios (1 suíte) e porcelanato.", fotos: build10Photos(8) },
+      { id: 15, codigo: "imovel_05", tipo: "locacao", titulo: "Studio Comercial / Galpão na Vila Maria", bairro: "Vila Maria", endereco: "Rua Cel. Joaquim Leandro de Oliveira, 282", preco: "R$ 2.900/mês", desc: "220m² de vão livre para clínica, estúdio ou comércio.", fotos: build10Photos(1) },
+      { id: 16, codigo: "imovel_06", tipo: "locacao", titulo: "Sala Corporativa 130m² no Centro", bairro: "Centro", endereco: "Rua Siqueira Campos, 201", preco: "R$ 4.000/mês", desc: "4 salas amplas, recepção e sala de reuniões.", fotos: build10Photos(3) },
+      { id: 17, codigo: "imovel_07", tipo: "locacao", titulo: "Casa Próxima ao Colégio Santa Marcelina", bairro: "Centro", endereco: "Rua Djalma Dutra, 734", preco: "R$ 4.500/mês", desc: "4 dormitórios, 3 banheiros e 2 salas.", fotos: build10Photos(5) },
+      { id: 18, codigo: "imovel_08", tipo: "locacao", titulo: "Studio Próximo à UNESP Rubião", bairro: "Rubião Junior", endereco: "Av. Bento Lopes, 512", preco: "R$ 1.450/mês", desc: "Ideal para estudantes e residentes a 3 min da UNESP.", fotos: build10Photos(7) },
+      { id: 19, codigo: "imovel_09", tipo: "locacao", titulo: "Casa com Área Gourmet no Jardim Paraíso", bairro: "Jardim Paraíso", endereco: "Rua Dr. Costa Leite, 1910", preco: "R$ 3.200/mês", desc: "3 dormitórios (2 suítes) e churrasqueira.", fotos: build10Photos(9) },
+      { id: 20, codigo: "imovel_10", tipo: "locacao", titulo: "Ponto Comercial na Vila dos Lavradores", bairro: "Vila dos Lavradores", endereco: "Rua Major Matheus, 410", preco: "R$ 5.500/mês", desc: "Esquina comercial com vitrine dupla e 3 vagas.", fotos: build10Photos(0) }
+    ];
+
+    let activeCloneFilter = "todos";
+    let activeThemeConfig = { primary: "#4f46e5", accent: "#10b981", bg: "#f8fafc", font: "'Inter', sans-serif", radius: "16px", isDark: false };
+    let currentModalProp = null;
+
+    function switchTab(tabId) {
+      ["clone", "folders", "code", "github"].forEach(t => {
+        document.getElementById(`tabContent-${t}`).classList.toggle("hidden", t !== tabId);
+        document.getElementById(`tabBtn-${t}`).className = t === tabId
+          ? "px-4 py-2.5 rounded-xl text-xs font-semibold bg-indigo-600 text-white cursor-pointer"
+          : "px-4 py-2.5 rounded-xl text-xs font-semibold bg-slate-900 text-slate-400 hover:text-white border border-slate-800 cursor-pointer";
+      });
+    }
+
+    function setCloneMode(mode) {
+      const panel = document.getElementById("redesignStudioPanel");
+      if (mode === "exact") {
+        panel.classList.add("hidden");
+        document.getElementById("modeExactBtn").className = "py-2 px-4 rounded-lg text-xs font-semibold bg-indigo-600 text-white transition";
+        document.getElementById("modeRedesignBtn").className = "py-2 px-4 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition";
+        applyThemeToClone("#4f46e5", "#10b981", "#f8fafc", "'Inter', sans-serif", "16px", false);
+      } else {
+        panel.classList.remove("hidden");
+        document.getElementById("modeRedesignBtn").className = "py-2 px-4 rounded-lg text-xs font-semibold bg-fuchsia-600 text-white transition";
+        document.getElementById("modeExactBtn").className = "py-2 px-4 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition";
+        applyAiDesignPreset(document.getElementById("aiPresetSelect").value);
+      }
+    }
+
+    function setDesignSubMode(sub) {
+      document.getElementById("aiDesignBox").classList.toggle("hidden", sub !== "ai");
+      document.getElementById("manualDesignBox").classList.toggle("hidden", sub !== "manual");
+    }
+
+    function applyAiDesignPreset(preset) {
+      const map = {
+        luxury: ["#b45309", "#d97706", "#0f172a", "'Playfair Display', serif", "8px", true],
+        modern: ["#4f46e5", "#0ea5e9", "#f8fafc", "'Inter', sans-serif", "20px", false],
+        minimal: ["#3f6212", "#65a30d", "#fafaf9", "'Montserrat', sans-serif", "0px", false]
+      };
+      applyThemeToClone(...(map[preset] || map.modern));
+    }
+
+    function generateDesignFromPrompt() {
+      applyThemeToClone("#7c3aed", "#10b981", "#090d16", "'Montserrat', sans-serif", "18px", true);
+    }
+
+    function updateCloneDesignLive() {
+      const p = document.getElementById("customPrimaryColor").value;
+      const a = document.getElementById("customAccentColor").value;
+      const bg = document.getElementById("customBgColor").value;
+      const font = document.getElementById("customFontSelect").value;
+      const isDark = parseInt(bg.replace("#", ""), 16) < 0x555555;
+      applyThemeToClone(p, a, bg, font, "16px", isDark);
+    }
+
+    function applyThemeToClone(primary, accent, bg, font, radius, isDark) {
+      activeThemeConfig = { primary, accent, bg, font, radius, isDark };
+      const canvas = document.getElementById("clonedSiteCanvas");
+      canvas.style.backgroundColor = bg;
+      canvas.style.color = isDark ? "#f8fafc" : "#0f172a";
+      canvas.style.fontFamily = font;
+      document.getElementById("clonedLogoBadge").style.backgroundColor = primary;
+      document.getElementById("clonedHero").style.background = `linear-gradient(135deg, ${primary} 0%, ${accent} 100%)`;
+      renderClonedCards();
+    }
+
+    function filterClonedSite(tipo) {
+      activeCloneFilter = tipo;
+      renderClonedCards();
+    }
+
+    function renderClonedCards() {
+      const grid = document.getElementById("clonedCardsGrid");
+      const q = (document.getElementById("cloneSearchInput")?.value || "").toLowerCase();
+      const list = SCRAPED_PROPERTIES.filter(i => (activeCloneFilter === "todos" || i.tipo === activeCloneFilter) && (!q || i.titulo.toLowerCase().includes(q) || i.bairro.toLowerCase().includes(q)));
+
+      grid.innerHTML = list.map(item => `
+        <div class="overflow-hidden border shadow-sm flex flex-col justify-between" style="background:${activeThemeConfig.isDark ? '#1e293b' : '#fff'}; border-color:${activeThemeConfig.isDark ? '#334155' : '#e2e8f0'}; border-radius:${activeThemeConfig.radius}">
+          <div>
+            <div class="relative h-44 overflow-hidden cursor-pointer" onclick="openGalleryModal(${item.id})">
+              <img src="${item.fotos[0]}" class="w-full h-full object-cover" />
+              <span class="absolute top-2.5 left-2.5 px-2 py-0.5 rounded text-[10px] font-bold uppercase text-white" style="background:${item.tipo === 'venda' ? activeThemeConfig.primary : activeThemeConfig.accent}">${item.tipo}</span>
+              <span class="absolute bottom-2.5 right-2.5 px-2 py-0.5 rounded bg-black/75 text-white text-[10px] font-mono">10 fotos</span>
+            </div>
+            <div class="p-4 space-y-1">
+              <div class="text-[11px] font-bold uppercase" style="color:${activeThemeConfig.primary}">${item.bairro}</div>
+              <h3 class="font-bold text-sm">${item.titulo}</h3>
+              <p class="text-xs opacity-75">${item.endereco}</p>
+            </div>
+          </div>
+          <div class="p-4 pt-2 border-t flex items-center justify-between" style="border-color:${activeThemeConfig.isDark ? '#334155' : '#e2e8f0'}">
+            <span class="font-extrabold text-sm">${item.preco}</span>
+            <button onclick="openGalleryModal(${item.id})" class="px-3 py-1.5 rounded text-xs font-semibold text-white cursor-pointer" style="background:${activeThemeConfig.accent}">Ver 10 Fotos</button>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function openGalleryModal(id) {
+      currentModalProp = SCRAPED_PROPERTIES.find(p => p.id === id);
+      if (!currentModalProp) return;
+      document.getElementById("modalPropFolder").textContent = `/imoveis/${currentModalProp.tipo}/${currentModalProp.codigo}/`;
+      document.getElementById("modalPropTitle").textContent = currentModalProp.titulo;
+      document.getElementById("photoGalleryModal").classList.remove("hidden");
+      selectModalPhoto(0);
+    }
+
+    function closeGalleryModal() {
+      document.getElementById("photoGalleryModal").classList.add("hidden");
+    }
+
+    function selectModalPhoto(idx) {
+      document.getElementById("modalMainImg").src = currentModalProp.fotos[idx];
+      document.getElementById("modalPhotoCounter").textContent = `Foto ${idx + 1} de 10 (foto_${String(idx + 1).padStart(2, "0")}.jpg)`;
+      document.getElementById("modalThumbnails").innerHTML = currentModalProp.fotos.map((f, i) => `
+        <img src="${f}" onclick="selectModalPhoto(${i})" class="h-10 w-full object-cover rounded cursor-pointer border-2 ${i === idx ? 'border-indigo-500' : 'border-transparent opacity-50'}" />
+      `).join("");
+    }
+
+    async function downloadFullProjectZip() {
+      const zip = new JSZip();
+      const root = zip.folder("sitecloner-studio");
+      root.file("index.html", "<!DOCTYPE html>\n" + document.documentElement.outerHTML);
+      root.file("dados_extraidos.json", JSON.stringify(SCRAPED_PROPERTIES, null, 2));
+      SCRAPED_PROPERTIES.forEach(item => {
+        root.folder(`imoveis/${item.tipo}/${item.codigo}`).file("info.json", JSON.stringify(item, null, 2));
+      });
+      const content = await zip.generateAsync({ type: "blob" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(content);
+      a.download = "sitecloner-studio.zip";
+      a.click();
+    }
+
+
+    function goToActiveClone() {
+      switchTab("clone");
+      document.getElementById("clonedSiteCanvas").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    function runFullClone() {
+      const url = document.getElementById("targetUrlInput").value.trim();
+      let parsed;
+      try {
+        parsed = new URL(url);
+        if (!["http:", "https:"].includes(parsed.protocol)) throw new Error("invalid");
+      } catch (_) {
+        alert("Informe uma URL válida começando por https://");
+        return;
+      }
+      alert("O catálogo exibido é uma demonstração com dados pré-carregados e fotos ilustrativas. A raspagem real desta URL ainda requer integração com um serviço de backend. Nenhum site foi clonado nesta operação.");
+      goToActiveClone();
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      renderClonedCards();
+    });
+  </script>
+</body>
+</html>
