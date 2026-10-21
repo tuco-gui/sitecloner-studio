@@ -85,7 +85,7 @@
           </select>
         </div>
         <div class="lg:col-span-3">
-          <button onclick="runFullClone()" class="w-full py-3 px-5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold text-sm rounded-xl shadow transition cursor-pointer">
+          <button id="runCloneButton" onclick="runFullClone()" class="w-full py-3 px-5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold text-sm rounded-xl shadow transition cursor-pointer">
             <i class="fa-solid fa-bolt mr-1"></i> Raspar & Clonar
           </button>
         </div>
@@ -388,32 +388,17 @@ git push origin main</pre>
     }
 
     async function downloadFullProjectZip() {
-      if (!capturedHtml) { alert("Primeiro capture um site para gerar o ZIP."); return; }
-      const zip = new JSZip();
-      zip.file("index.html", capturedHtml);
-      zip.file("captura.json", JSON.stringify(capturedMeta, null, 2));
-      const blob = await zip.generateAsync({type: "blob"});
+      if (!window.lastCaptureZip) {
+        alert("Primeiro clique em Raspar & Clonar para gerar um projeto.");
+        return;
+      }
       const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = "sitecloner-captura.zip";
+      const url=URL.createObjectURL(window.lastCaptureZip);
+      a.href=url;
+      a.download="sitecloner-projeto.zip";
       a.click();
-      URL.revokeObjectURL(a.href);
-      return;
-
-      const zip = new JSZip();
-      const root = zip.folder("sitecloner-studio");
-      root.file("index.html", "<!DOCTYPE html>\n" + document.documentElement.outerHTML);
-      root.file("dados_extraidos.json", JSON.stringify(SCRAPED_PROPERTIES, null, 2));
-      SCRAPED_PROPERTIES.forEach(item => {
-        root.folder(`imoveis/${item.tipo}/${item.codigo}`).file("info.json", JSON.stringify(item, null, 2));
-      });
-      const content = await zip.generateAsync({ type: "blob" });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(content);
-      a.download = "sitecloner-studio.zip";
-      a.click();
+      setTimeout(()=>URL.revokeObjectURL(url),60000);
     }
-
 
     function goToActiveClone() {
       switchTab("clone");
@@ -421,38 +406,60 @@ git push origin main</pre>
     }
 
     async function runFullClone() {
-      const url = document.getElementById("targetUrlInput").value.trim();
-      const state = document.getElementById("cloneStatus");
-      let parsed;
+      const status = document.getElementById("cloneStatus");
+      let url;
       try {
-        parsed = new URL(url);
-        if (!["http:", "https:"].includes(parsed.protocol)) throw new Error("invalid");
-      } catch (_) {
-        state.textContent = "Informe uma URL válida, começando por https://";
+        url = new URL(document.getElementById("targetUrlInput").value.trim());
+        if (!["http:","https:"].includes(url.protocol)) throw new Error();
+      } catch {
+        status.textContent = "Informe uma URL válida (https://...).";
         return;
       }
-      state.textContent = "Capturando a página. Aguarde...";
+      const btn = document.getElementById("runCloneButton");
+      btn.disabled = true;
+      btn.textContent = "Capturando páginas...";
+      status.textContent = "Abrindo o navegador remoto e reunindo HTML, CSS, JavaScript e imagens. Pode levar até um minuto.";
       goToActiveClone();
       try {
-        const response = await fetch("/api/scrape", {
-          method: "POST", headers: {"Content-Type": "application/json"},
-          body: JSON.stringify({url: parsed.href})
+        const response = await fetch("/api/scrape",{
+          method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url:url.href})
         });
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.error || "Falha na captura");
-        capturedHtml = result.html;
-        capturedMeta = {url:result.url, title:result.title, links:result.links, images:result.images, fetchedAt:new Date().toISOString()};
+        if (!response.ok) {
+          const err = await response.json().catch(()=>({error:"Erro HTTP "+response.status}));
+          throw new Error(err.error || "Captura indisponível");
+        }
+        const bytes = await response.arrayBuffer();
+        const zip = await JSZip.loadAsync(bytes);
+        const manifest = JSON.parse(await zip.file("captura.json").async("string"));
+        const html = await zip.file("index.html").async("string");
+        const prepared = html.replace(/(?:src|href)="assets\//g,match=>match);
+        const doc = new DOMParser().parseFromString(prepared,"text/html");
+        const files = Object.keys(zip.files).filter(x=>x.startsWith("assets/")&&!zip.files[x].dir);
+        for (const name of files) {
+          const blob=await zip.file(name).async("blob");
+          const blobUrl=URL.createObjectURL(blob);
+          doc.querySelectorAll("[src],[href]").forEach(el=>{
+            for(const attr of ["src","href"]){
+              if(el.getAttribute(attr)===name)el.setAttribute(attr,blobUrl);
+            }
+          });
+        }
+        doc.querySelectorAll("script").forEach(el=>el.remove());
+        capturedHtml = "<!DOCTYPE html>\n"+doc.documentElement.outerHTML;
+        capturedMeta = manifest;
+        window.lastCaptureZip = new Blob([bytes],{type:"application/zip"});
         document.getElementById("emptyState").classList.add("hidden");
-        const frame = document.getElementById("capturedPreview");
+        const frame=document.getElementById("capturedPreview");
         frame.classList.remove("hidden");
-        frame.srcdoc = capturedHtml;
-        const bar = document.getElementById("captureResultStatus");
+        frame.srcdoc=capturedHtml;
+        const bar=document.getElementById("captureResultStatus");
         bar.classList.remove("hidden");
-        bar.textContent = "Página capturada: " + (result.title || result.url) + " • " + result.images + " imagens • " + result.links + " links. Scripts interativos não são reproduzidos nesta prévia.";
-      } catch (err) {
-        document.getElementById("emptyState").classList.remove("hidden");
-        document.getElementById("capturedPreview").classList.add("hidden");
-        state.textContent = "Erro: " + err.message;
+        bar.textContent = "Captura concluída: "+manifest.pages.filter(p=>p.file).length+" páginas e "+manifest.assetsSaved+" arquivos. Clique em Baixar ZIP Local para exportar.";
+      } catch(e) {
+        status.textContent = "Falha na captura: "+e.message;
+      } finally {
+        btn.disabled=false;
+        btn.innerHTML='<i class="fa-solid fa-bolt mr-1"></i> Raspar & Clonar';
       }
     }
 
