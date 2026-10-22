@@ -16,7 +16,7 @@ const MAX_BODY = 4096;
 const PORT = Number(process.env.PORT || 8790);
 const HOST = process.env.HOST || '127.0.0.1';
 const ALLOWED_HOSTS = new Set((process.env.ALLOWED_HOSTS || '').split(',').map(s=>s.trim().toLowerCase()).filter(Boolean));
-const TOKEN = process.env.REA_WORKER_TOKEN || '';
+const TOKEN = process.env.REA_WORKER_TOKEN_FILE ? fs.readFileSync(process.env.REA_WORKER_TOKEN_FILE,'utf8').trim() : (process.env.REA_WORKER_TOKEN || '');
 const browserPath = process.env.CHROMIUM_PATH || '/usr/bin/chromium';
 
 function authorized(header) {
