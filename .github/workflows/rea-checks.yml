@@ -21,3 +21,10 @@ jobs:
       - run: npm install --ignore-scripts --no-audit --no-fund
       - run: node --check worker/server.js && node --check lib/rea-bridge.js && node --check api/scrape.js
       - run: node --test test/*.test.js
+
+  worker-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build --file worker/Dockerfile --tag sitecloner-rea-worker:test .
