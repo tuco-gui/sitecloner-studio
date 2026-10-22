@@ -5,6 +5,10 @@ const dns = require('node:dns').promises;
 const net = require('node:net');
 const crypto = require('node:crypto');
 const {chromium} = require('playwright-core');
+const {spawn} = require('node:child_process');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const {Client} = require('@modelcontextprotocol/sdk/client/index.js');
 const {StdioClientTransport} = require('@modelcontextprotocol/sdk/client/stdio.js');
 
@@ -29,7 +33,7 @@ function publicIp(address) {
       (a===198&&(b===18||b===19)));
   }
   const a=address.toLowerCase();
-  return !(a==='::'||a==='::1'||a.startsWith('fc')||a.startsWith('fd')||
+  return !(a==='::'||a==='::1'||a.startsWith('fc')||a.startsWith('fd')||a.startsWith('2001:db8')||
       /^fe[89ab]/.test(a)||a.startsWith('::ffff:'));
 }
 async function safeUrl(raw) {
@@ -52,10 +56,29 @@ async function readBody(req) {
 }
 async function captureWithRea(url) {
   // Chromium CDP is reachable only on 127.0.0.1 inside the worker container.
-  const browser=await chromium.launch({
-    executablePath:browserPath,headless:true,
-    args:['--no-sandbox','--disable-dev-shm-usage','--remote-debugging-address=127.0.0.1','--remote-debugging-port=9222']
-  });
+  // Launch Chromium independently: Playwright's default pipe mode does not
+  // reliably expose a CDP TCP endpoint for a second process (REA).
+  const profile=fs.mkdtempSync(path.join(os.tmpdir(),'sitecloner-rea-'));
+  const proc=spawn(browserPath,[
+    '--headless=new','--no-sandbox','--disable-dev-shm-usage',
+    '--remote-debugging-address=127.0.0.1','--remote-debugging-port=9222',
+    '--no-first-run','--no-default-browser-check','--disable-extensions',
+    '--user-data-dir='+profile,'about:blank'
+  ],{stdio:'ignore'});
+  let browser;
+  try {
+    const deadline=Date.now()+10000;
+    let ready=false;
+    while(Date.now()<deadline && !ready) {
+      if(proc.exitCode!==null) throw new Error('Chromium encerrou antes do CDP');
+      try {
+        const response=await fetch('http://127.0.0.1:9222/json/version',{signal:AbortSignal.timeout(500)});
+        ready=response.ok;
+      }catch { await new Promise(r=>setTimeout(r,150)); }
+    }
+    if(!ready) throw new Error('CDP local indisponível');
+    browser=await chromium.connectOverCDP('http://127.0.0.1:9222');
+  }catch(e){proc.kill('SIGTERM');fs.rmSync(profile,{recursive:true,force:true});throw e;}
   const client = new Client({name:'sitecloner-worker',version:'1.0.0'});
   try {
     const context=await browser.newContext({serviceWorkers:'block'});
@@ -86,7 +109,9 @@ async function captureWithRea(url) {
         .map(x=>String(x.text||'').slice(0,25000)).slice(0,2)};
   } finally {
     await client.close().catch(()=>{});
-    await browser.close().catch(()=>{});
+    if(browser) await browser.close().catch(()=>{});
+    proc.kill('SIGTERM');
+    fs.rmSync(profile,{recursive:true,force:true});
   }
 }
 let active=false;
