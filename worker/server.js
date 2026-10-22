@@ -65,14 +65,15 @@ function extractReaHints(raw,target){
   if(u.protocol!=='https:'&&u.protocol!=='http:')continue;
   if(u.username||u.password||u.port)continue;
   u.search='';u.hash='';
-  if(u.hostname===site.hostname &&
-      !/\\.(css|js|json|xml|pdf|zip|svg|png|jpe?g|webp|woff2?)$/i.test(u.pathname) &&
-      u.pathname!=='/' && !pageUrls.includes(u.href)&&pageUrls.length<20) pageUrls.push(u.href);
-  if(/\\.(png|jpe?g|webp|avif|gif)$/i.test(u.pathname) &&
-      !imageUrls.includes(u.href)&&imageUrls.length<30)imageUrls.push(u.href);
+  const ext=u.pathname.toLowerCase().split('.').pop();
+  const media=['png','jpg','jpeg','webp','avif','gif'].includes(ext);
+  const notPage=['css','js','json','xml','pdf','zip','svg','png','jpg','jpeg','webp','woff','woff2'].includes(ext);
+  if(u.hostname===site.hostname&&!notPage&&u.pathname!=='/' &&
+       !pageUrls.includes(u.href)&&pageUrls.length<20)pageUrls.push(u.href);
+  if(media&&!imageUrls.includes(u.href)&&imageUrls.length<30)imageUrls.push(u.href);
  }
  return {pageUrls,imageUrls,
-   framework:/next[.\\s-]?js|_next\\//i.test(safeText)?'nextjs':null};
+   framework:safeText.toLowerCase().includes('_next/')||safeText.toLowerCase().includes('next.js')?'nextjs':null};
 }
 async function captureWithRea(url) {
   // Chromium CDP is reachable only on 127.0.0.1 inside the worker container.
