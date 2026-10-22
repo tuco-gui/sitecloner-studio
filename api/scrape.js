@@ -137,6 +137,25 @@ module.exports = async (req,res) => {
     const page=await context.newPage();
     page.setDefaultTimeout(10000);
     const queue=[entry.href];
+    // Seed supplementary URLs from sitemap (when available), while still
+    // preferring links found on the home page. Do not follow external hosts.
+    let sitemapUrls=[];
+    try {
+      const sitemap=new URL('/sitemap.xml',entry);
+      const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),3500);
+      try{
+        await checkUrl(sitemap.href,origin);
+        const response=await fetch(sitemap.href,{signal:controller.signal,redirect:'manual'});
+        if(response.ok && /xml|text\/plain/i.test(response.headers.get('content-type')||'') &&
+          Number(response.headers.get('content-length')||0)<750000){
+          const body=await response.text();
+          if(body.length<750000){
+            sitemapUrls=[...body.matchAll(/<loc>\s*([^<]+)\s*<\/loc>/gi)].slice(0,100).map(x=>x[1].replace(/&amp;/g,'&'))
+              .filter(x=>{try{const u=new URL(x);return u.origin===origin&&u.pathname!=='/'}catch{return false}});
+          }
+        }
+      }finally{clearTimeout(timer)}
+    }catch{}
     while(queue.length && reports.filter(x=>x.file).length<maximumPages && Date.now()-start<DEADLINE-8000) {
       const target=queue.shift();
       const normalized=target.split('#')[0];
@@ -191,6 +210,7 @@ module.exports = async (req,res) => {
         zip.file(file,html);
         captured.set(current.href,file);
         reports.push({url:current.href,file,title:$('title').first().text().trim().slice(0,150)});
+        if(index===0){for(const u of sitemapUrls){if(queue.length>=100)break;if(!queue.includes(u))queue.push(u)}}
       } catch(e) {
         reports.push({url:normalized,error:e.message});
       }
