@@ -54,7 +54,7 @@ jobs:
             -H 'Authorization: Bearer ci-local-token' \
             -H 'Content-Type: application/json' \
             -d '{"url":"https://example.com"}')
-          node -e "const fs=require('fs');const d=JSON.parse(fs.readFileSync('/tmp/result.json','utf8'));console.log(JSON.stringify({httpStatus:process.argv[1],status:d.status,tool:d.tool,error:d.error}));if(process.argv[1]!=='200'||d.status!=='ok'||!d.coverage?.successful?.includes('inspect_web_page')||!d.coverage?.successful?.includes('analyze_web_bundle'))process.exit(1)" "$STATUS"
+          node -e "const fs=require('fs');const d=JSON.parse(fs.readFileSync('/tmp/result.json','utf8'));console.log(JSON.stringify({httpStatus:process.argv[1],status:d.status,tool:d.tool,error:d.error,coverage:d.coverage,observations:d.observations?.map(x=>({tool:x.tool,status:x.status,reason:x.reason}))}));if(process.argv[1]!=='200'||d.status!=='ok'||!d.coverage?.successful?.includes('inspect_web_page')||!d.coverage?.successful?.includes('analyze_web_bundle'))process.exit(1)" "$STATUS"
       - name: Container diagnostics on failure
         if: failure()
         run: docker logs --tail 100 rea-smoke || true
