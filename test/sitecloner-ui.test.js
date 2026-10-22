@@ -9,7 +9,7 @@ test('page JavaScript parses',()=>{
 test('redesign preserves text, image and logo names',()=>{
  const html='<!DOCTYPE html><html><head><title>Empresa</title></head><body><header><img alt="Marca" src="assets/logo.png"></header><main><h1>Sobre nós</h1></main></body></html>';
  const result=redesign(html);
- assert.match(result,/Sobre nós/);assert.match(result,/assets\/logo.png/);assert.match(result,/sitecloner-redesign.css/);assert.match(css,/--brand/);
+ assert.match(result,/Sobre nós/);assert.match(result,/assets\/logo.png/);assert.match(result,/sitecloner-redesign.css/);assert.match(css,/--accent/);
 });
 
 test('redesign discards hidden original CSS and builds real cards',()=>{
