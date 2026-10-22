@@ -186,7 +186,7 @@ async function reconstructWithAI(){
    const poll=await fetch('/api/build?id='+encodeURIComponent(activeBuilderJob),{credentials:'same-origin'});
    const job=await poll.json();
    if(!poll.ok)throw Error(job.error||'Falha na consulta do trabalho');
-   const labels={queued:'na fila',investigating:'REA investigando',specifying:'especificando',generating:'IA escrevendo o código',compiling:'compilando React',packaging:'preparando ZIP'};
+   const labels={queued:'na fila',investigating:'REA investigando',specifying:'especificando',generating:'IA escrevendo o código',compiling:'compilando React',repairing:'IA corrigindo erros de compilação',packaging:'preparando ZIP'};
    setStatus('Reconstrução IA: '+(labels[job.status]||job.status)+' — '+new URL(source).hostname);
    if(job.status==='failed')throw Error(job.error||'A reconstrução não foi concluída');
    if(job.status==='ready'){
