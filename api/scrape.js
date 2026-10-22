@@ -1,4 +1,5 @@
-const {isAuthorized}=require('../lib/capture-auth');
+const {checkSession,validOrigin}=require('../lib/session-auth');
+const {css: redesignCss,redesign}=require('../lib/redesign');
 const { chromium: playwright } = require('playwright-core');
 const chromium = require('@sparticuz/chromium');
 const cheerio = require('cheerio');
@@ -7,7 +8,7 @@ const dns = require('node:dns').promises;
 const net = require('node:net');
 const crypto = require('node:crypto');
 
-const PAGE_LIMIT = 3;
+const PAGE_LIMIT = 10;
 const ASSET_LIMIT = 100;
 const ASSET_MAX = 3 * 1024 * 1024;
 const ZIP_MAX = 30 * 1024 * 1024;
@@ -53,10 +54,13 @@ function pathForPage(u, index) {
 module.exports = async (req,res) => {
   res.setHeader('Cache-Control','no-store');
   if(req.method!=='POST') return res.status(405).json({error:'Use POST'});
-  if(!isAuthorized(req)) return res.status(401).json({error:'Acesso restrito. Informe a chave de acesso do SiteCloner.'});
+  if(!checkSession(req)) return res.status(401).json({error:'Faça login para capturar.'});
+  if(!validOrigin(req)) return res.status(403).json({error:'Origem não autorizada'});
   let browser;
   try {
     const entry=await checkUrl(req.body?.url);
+    const designMode=req.body?.designMode==='redesign'?'redesign':'faithful';
+    const maximumPages=Math.max(1,Math.min(PAGE_LIMIT,Number(req.body?.maxPages)||PAGE_LIMIT));
 
     if (req.body?.mode !== 'advanced') {
       const zip = new JSZip();
@@ -96,8 +100,9 @@ module.exports = async (req,res) => {
           }
         });
         const output='<!DOCTYPE html>\n'+$.html();
-        zip.file('index.html',output);
-        zip.file('captura.json',JSON.stringify({source:next.href,createdAt:new Date().toISOString(),pages:[{url:next.href,file:'index.html',title:$('title').text().slice(0,150)}],assetsSaved:0,assetErrors:[],mode:'basic',limitations:['Captura básica sem navegador: CSS e imagens permanecem como referências externas','Para captura avançada selecione Playwright; recursos de sites protegidos podem falhar']},null,2));
+        zip.file('index.html',designMode==='redesign'?redesign(output):output);
+        if(designMode==='redesign')zip.file('sitecloner-redesign.css',redesignCss);
+        zip.file('captura.json',JSON.stringify({source:next.href,createdAt:new Date().toISOString(),pages:[{url:next.href,file:'index.html',title:$('title').text().slice(0,150)}],assetsSaved:0,assetErrors:[],designMode,mode:'basic',limitations:['Captura básica sem navegador: CSS e imagens permanecem como referências externas','Para captura avançada selecione Playwright; recursos de sites protegidos podem falhar']},null,2));
         const payload=await zip.generateAsync({type:'nodebuffer',compression:'DEFLATE'});
         res.setHeader('Content-Type','application/zip');
         res.setHeader('Content-Disposition','attachment; filename="sitecloner-basico.zip"');
@@ -110,6 +115,7 @@ module.exports = async (req,res) => {
     const start=Date.now();
     let bytes=0;
     const assets=new Map(), discovered=[], visited=new Set(), reports=[];
+    const captured=new Map();
     let firstHtml='';
     browser=await playwright.launch({
       executablePath:await chromium.executablePath(),
@@ -131,7 +137,7 @@ module.exports = async (req,res) => {
     const page=await context.newPage();
     page.setDefaultTimeout(10000);
     const queue=[entry.href];
-    while(queue.length && reports.length<PAGE_LIMIT && Date.now()-start<DEADLINE-8000) {
+    while(queue.length && reports.filter(x=>x.file).length<maximumPages && Date.now()-start<DEADLINE-8000) {
       const target=queue.shift();
       const normalized=target.split('#')[0];
       if(visited.has(normalized)) continue;
@@ -168,10 +174,9 @@ module.exports = async (req,res) => {
             if(next.origin!==origin || !['http:','https:'].includes(next.protocol))return;
             if(/\.(pdf|zip|png|jpe?g|svg|webp|gif|mp4|docx?)$/i.test(next.pathname))return;
             if(!visited.has(next.href) && !queue.includes(next.href) && queue.length<15)queue.push(next.href);
-            const known=[entry.href,...queue];
-            const ix=known.indexOf(next.href);
-            if(ix>=0 && ix<PAGE_LIMIT) $(el).attr('href',reports.length===0 ? pathForPage(next.href,ix) : '../'+pathForPage(next.href,ix));
-            else $(el).attr('href',next.href);
+            // Link rewriting is performed after crawling, when actual saved pages
+            // are known. Never guess filenames from queue positions here.
+            $(el).attr('href',next.href);
           } catch{}
         });
         $('*').each((_,el)=>{
@@ -180,16 +185,43 @@ module.exports = async (req,res) => {
           }
         });
         const html='<!DOCTYPE html>\n'+$.html();
-        const index=reports.length;
+        const index=reports.filter(x=>x.file).length;
         if(index===0)firstHtml=html;
         const file=pathForPage(current.href,index);
         zip.file(file,html);
+        captured.set(current.href,file);
         reports.push({url:current.href,file,title:$('title').first().text().trim().slice(0,150)});
       } catch(e) {
         reports.push({url:normalized,error:e.message});
       }
     }
     if(!firstHtml) throw new Error('Não foi possível capturar a primeira página');
+    // Re-map anchors only to pages actually downloaded. Non-captured links
+    // retain their remote destinations rather than pointing to nonexistent files.
+    for(const [url,file] of captured){
+      const html=await zip.file(file).async('string');
+      const $=cheerio.load(html,{decodeEntities:false});
+      $('a[href]').each((_,el)=>{
+        const raw=$(el).attr('href');
+        try {
+          const absolute=new URL(raw,url);
+          const fragment=absolute.hash;
+          absolute.hash='';
+          const dest=captured.get(absolute.href);
+          if(!dest)return;
+          const relative=file==='index.html'?dest:(dest==='index.html'?'../index.html':'../'+dest);
+          $(el).attr('href',relative+fragment);
+        } catch {}
+      });
+      const pageHtml='<!DOCTYPE html>\\n'+$.html();
+      if(designMode==='redesign'){
+        let changed=redesign(pageHtml);
+        if(file!=='index.html')changed=changed.replace('href="sitecloner-redesign.css"','href="../sitecloner-redesign.css"');
+        zip.file(file,changed);
+      }else zip.file(file,pageHtml);
+    }
+    if(designMode==='redesign')zip.file('sitecloner-redesign.css',redesignCss);
+
     const assetErrors=[];
     for(const [url,local] of assets) {
       if(zip.file(local) || zip.files[local]) continue;
@@ -230,7 +262,7 @@ module.exports = async (req,res) => {
       } catch(e) { reaReport={status:'unavailable',reason:String(e.message||e).slice(0,160)}; }
     }
     zip.file('rea-analysis.json',JSON.stringify(reaReport,null,2));
-    zip.file('captura.json',JSON.stringify({source:entry.href,createdAt:new Date().toISOString(),pages:reports,assetsSaved:Object.keys(zip.files).filter(x=>x.startsWith('assets/')).length,assetErrors,reaStatus:reaReport.status,limitations:['Até três páginas por operação','Arquivos de terceiros não são incorporados','Scripts e rotas dinâmicas podem não funcionar offline','Use apenas em sites para os quais você tem autorização']},null,2));
+    zip.file('captura.json',JSON.stringify({source:entry.href,createdAt:new Date().toISOString(),pages:reports,assetsSaved:Object.keys(zip.files).filter(x=>x.startsWith('assets/')).length,assetErrors,reaStatus:reaReport.status,designMode,maxPages:maximumPages,limitations:['Até dez páginas por operação, conforme prazo de execução','Arquivos de terceiros não são incorporados','Scripts e rotas dinâmicas podem não funcionar offline','Use apenas em sites para os quais você tem autorização']},null,2));
     const payload=await zip.generateAsync({type:'nodebuffer',compression:'DEFLATE',compressionOptions:{level:5}});
     if(payload.length>ZIP_MAX)throw new Error('ZIP excedeu o limite');
     res.setHeader('Content-Type','application/zip');
