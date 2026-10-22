@@ -54,3 +54,16 @@ test('adapter envia evidências por HTTPS e interpreta projeto gerado',async()=>
  assert.equal(result.usage.outputTokens,77);
  assert.equal(modelConfig({BUILDER_MODEL_ENDPOINT:'',BUILDER_MODEL_NAME:'mock'}),null);
 });
+
+test('reparo envia diagnóstico do compilador e exige novo projeto completo',async()=>{
+ const spec=makeSpec({url:'https://www.realizeimobi.imb.br/',kind:'site',designMode:'redesign'},sampleRea);
+ const broken={files:[{path:'src/App.jsx',content:'export default function App(){ return <div>'}]};
+ let body;
+ const result=await generateWithModel(spec,{endpoint:'https://model.example.com/v1/chat/completions',model:'mock',token:'test'},async(url,options)=>{
+  body=JSON.parse(options.body);
+  return {ok:true,text:async()=>JSON.stringify({choices:[{message:{content:JSON.stringify(sampleOutput)}}],usage:{prompt_tokens:100,completion_tokens:150}})};
+ },{previousProject:broken,compilerError:'JSX syntax error'});
+ assert.match(body.messages[1].content,/JSX syntax error/);
+ assert.match(body.messages[1].content,/previousProject/);
+ assert.equal(result.output.files.length,2);
+});
