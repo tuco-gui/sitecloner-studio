@@ -78,7 +78,7 @@ async function captureWithRea(url) {
     }
     if(!ready) throw new Error('CDP local indisponível');
     browser=await chromium.connectOverCDP('http://127.0.0.1:9222');
-  }catch(e){proc.kill('SIGTERM');fs.rmSync(profile,{recursive:true,force:true});throw e;}
+  }catch(e){proc.kill('SIGTERM');try{fs.rmSync(profile,{recursive:true,force:true});}catch{}throw e;}
   const client = new Client({name:'sitecloner-worker',version:'1.0.0'});
   try {
     const context=await browser.newContext({serviceWorkers:'block'});
@@ -111,7 +111,10 @@ async function captureWithRea(url) {
     await client.close().catch(()=>{});
     if(browser) await browser.close().catch(()=>{});
     proc.kill('SIGTERM');
-    fs.rmSync(profile,{recursive:true,force:true});
+    await new Promise(resolve=>setTimeout(resolve,250));
+    try {fs.rmSync(profile,{recursive:true,force:true});} catch(e) {
+      console.error('Chrome profile cleanup:',e.code||e.message);
+    }
   }
 }
 let active=false;
