@@ -11,7 +11,7 @@ main{max-width:1090px;margin:36px auto;padding:0 20px}.logo{font-weight:800;font
 </style>
 </head>
 <body>
-<header><div><div class="logo">▣ SiteCloner Studio <span class="pill">4.0</span></div><div class="muted">Captura real de páginas web e exportação do projeto</div></div><div class="actions"><button id="downloadBtn" class="secondary" disabled>Baixar ZIP</button><button id="previewBtn" class="secondary" disabled>Ver clone ativo</button></div></header>
+<header><div><div class="logo">▣ SiteCloner Studio <span class="pill">4.0</span></div><div class="muted">Captura real de páginas web e exportação do projeto</div></div><div class="actions"><button id="downloadBtn" class="secondary" disabled>Baixar ZIP</button><button id="previewBtn" class="secondary" disabled>Ver clone ativo</button><button id="logoutBtn" class="secondary hidden" type="button">Sair</button></div></header>
 <main>
 <section id="loginPanel" class="panel"><h2>Entrar no SiteCloner</h2><div class="grid"><div class="field"><label for="loginEmail">E-mail</label><input id="loginEmail" type="email" autocomplete="username" placeholder="seu@email.com"></div><div class="field"><label for="loginPassword">Senha</label><input id="loginPassword" type="password" autocomplete="current-password" placeholder="Sua senha"></div></div><div class="actions"><button type="button" id="loginBtn">Entrar</button></div><p id="loginMessage" class="muted" aria-live="polite">Entre uma vez e mantenha a sessão ativa neste navegador.</p></section><div id="appContent" class="hidden">
 <section class="panel">
@@ -33,8 +33,9 @@ main{max-width:1090px;margin:36px auto;padding:0 20px}.logo{font-weight:800;font
 (function(){
 'use strict';
 const $=id=>document.getElementById(id);
-async function refreshSession(){try{const r=await fetch("/api/session",{credentials:"same-origin"});const data=await r.json();$("loginPanel").classList.toggle("hidden",!!data.authenticated);$("appContent").classList.toggle("hidden",!data.authenticated)}catch{$("loginPanel").classList.remove("hidden");$("appContent").classList.add("hidden")}}
+async function refreshSession(){try{const r=await fetch("/api/session",{credentials:"same-origin"});const data=await r.json();$("loginPanel").classList.toggle("hidden",!!data.authenticated);$("appContent").classList.toggle("hidden",!data.authenticated);$("logoutBtn").classList.toggle("hidden",!data.authenticated)}catch{$("loginPanel").classList.remove("hidden");$("appContent").classList.add("hidden")}}
 async function login(){const r=await fetch("/api/login",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:$("loginEmail").value.trim(),password:$("loginPassword").value})});const data=await r.json();$("loginPassword").value="";if(!r.ok){$("loginMessage").textContent=data.error||"Falha no login";return}await refreshSession()}
+$("logoutBtn").addEventListener("click",async()=>{await fetch("/api/logout",{method:"POST",credentials:"same-origin"});await refreshSession()});
 $("loginBtn").addEventListener("click",login);$("loginPassword").addEventListener("keydown",e=>{if(e.key==="Enter")login()});refreshSession();
 let lastZip=null,lastUrl=null,lastManifest=null,inProgress=false,aborter=null;
 function setStatus(message,type){const el=$('status');el.textContent=message;el.className='status'+(type?' '+type:'');}
