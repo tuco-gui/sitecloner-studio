@@ -101,6 +101,9 @@ async function preview(){
         if(assets[key])el.setAttribute(attr,assets[key]);
       }
     }
+    // Include the local redesign stylesheet in the isolated preview.
+    const redesignFile=zip.file('sitecloner-redesign.css');
+    if(redesignFile){const style=doc.createElement('style');style.textContent=await redesignFile.async('string');doc.head.append(style);}
     // HTML-only captures may depend on remote CSS and image references.
     if(manifest.mode==='basic' && manifest.source){
       const base=doc.createElement('base');base.href=manifest.source;
