@@ -1,6 +1,7 @@
 const {checkSession,validOrigin}=require('../lib/session-auth');
 const {css: redesignCss,redesign}=require('../lib/redesign');
 const {rewriteCss}=require('../lib/rewrite-css');
+const {isPageUrl,extractLocs,prioritize}=require('../lib/sitemap-discovery');
 const { chromium: playwright } = require('playwright-core');
 const chromium = require('@sparticuz/chromium');
 const cheerio = require('cheerio');
@@ -114,6 +115,31 @@ module.exports = async (req,res) => {
     const origin=entry.origin;
     const zip=new JSZip();
     const start=Date.now();
+    // Start REA while the independent Playwright exporter captures HTML.
+    // It inspects runtime and bundle evidence, not arbitrary page instructions.
+    const reaPromise=(async()=>{
+      if(!process.env.REA_WORKER_URL||!process.env.REA_WORKER_TOKEN)
+        return {status:'not_configured',hints:{pageUrls:[],imageUrls:[]}};
+      try{
+        const endpoint=new URL(process.env.REA_WORKER_URL);
+        if(endpoint.protocol!=='https:'||endpoint.username||endpoint.password)
+          throw new Error('Endpoint REA exige HTTPS');
+        const path=endpoint.pathname.replace(/\\/$/,'')+'/analyze';
+        const response=await fetch(new URL(path,endpoint.origin),{
+          method:'POST',signal:AbortSignal.timeout(14000),
+          headers:{'Content-Type':'application/json',Authorization:'Bearer '+process.env.REA_WORKER_TOKEN},
+          body:JSON.stringify({url:entry.href})
+        });
+        if(!response.ok)throw new Error('HTTP '+response.status);
+        const raw=await response.text();
+        if(raw.length>80000)throw new Error('Resposta REA acima do limite');
+        const result=JSON.parse(raw);
+        return {...result,hints:result.hints||{pageUrls:[],imageUrls:[]}};
+      }catch(e){return {status:'unavailable',reason:String(e.message||e).slice(0,140),
+         hints:{pageUrls:[],imageUrls:[]}}}
+    })();
+    const reaUsed={pages:0,images:0};
+
     let bytes=0;
     const assets=new Map(), discovered=[], visited=new Set(), reports=[];
     const captured=new Map();
@@ -138,24 +164,31 @@ module.exports = async (req,res) => {
     const page=await context.newPage();
     page.setDefaultTimeout(10000);
     const queue=[entry.href];
-    // Seed supplementary URLs from sitemap (when available), while still
-    // preferring links found on the home page. Do not follow external hosts.
+    // REA captures script/network evidence. XML sitemap indexes supply the
+    // complete published route inventory when a JavaScript homepage hides links.
     let sitemapUrls=[];
-    try {
-      const sitemap=new URL('/sitemap.xml',entry);
-      const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),3500);
-      try{
-        await checkUrl(sitemap.href,origin);
-        const response=await fetch(sitemap.href,{signal:controller.signal,redirect:'manual'});
-        if(response.ok && /xml|text\/plain/i.test(response.headers.get('content-type')||'') &&
-          Number(response.headers.get('content-length')||0)<750000){
-          const body=await response.text();
-          if(body.length<750000){
-            sitemapUrls=[...body.matchAll(/<loc>\s*([^<]+)\s*<\/loc>/gi)].slice(0,100).map(x=>x[1].replace(/&amp;/g,'&'))
-              .filter(x=>{try{const u=new URL(x);return u.origin===origin&&u.pathname!=='/'}catch{return false}});
-          }
-        }
-      }finally{clearTimeout(timer)}
+    const fetchXml=async(href)=>{
+      await checkUrl(href,origin);
+      const response=await fetch(href,{signal:AbortSignal.timeout(2600),redirect:'manual'});
+      if(!response.ok||Number(response.headers.get('content-length')||0)>550000)
+        return '';
+      const body=await response.text();
+      return body.length<550000?body:'';
+    };
+    try{
+      const sitemapHref=new URL('/sitemap.xml',entry).href;
+      const xml=await fetchXml(sitemapHref);
+      const found=extractLocs(xml,origin);
+      sitemapUrls=found.filter(x=>isPageUrl(x,origin));
+      const nested=found.filter(x=>/\\.xml(?:\\?|$)/i.test(x)).slice(0,5);
+      for(const child of nested){
+        try{
+          const childXml=await fetchXml(child);
+          sitemapUrls.push(...extractLocs(childXml,origin).filter(x=>isPageUrl(x,origin)));
+        }catch{}
+        if(Date.now()-start>DEADLINE-18000)break;
+      }
+      sitemapUrls=prioritize(sitemapUrls).slice(0,60);
     }catch{}
     while(queue.length && reports.filter(x=>x.file).length<maximumPages && Date.now()-start<DEADLINE-8000) {
       const target=queue.shift();
@@ -211,7 +244,28 @@ module.exports = async (req,res) => {
         zip.file(file,html);
         captured.set(current.href,file);
         reports.push({url:current.href,file,title:$('title').first().text().trim().slice(0,150)});
-        if(index===0){for(const u of sitemapUrls){if(queue.length>=100)break;if(!queue.includes(u))queue.push(u)}}
+        if(index===0){
+          const rea=await reaPromise;
+          const candidatePages=(rea.hints?.pageUrls||[])
+            .filter(x=>isPageUrl(x,origin)).slice(0,20);
+          reaUsed.pages=candidatePages.length;
+          const seed=prioritize([...candidatePages,...sitemapUrls]).slice(0,80);
+          // Prefer evidence/sitemap-backed listing routes before generic footer links.
+          for(const u of seed.reverse()){
+            if(queue.length>=100)break;
+            if(!visited.has(u)&&!queue.includes(u))queue.unshift(u);
+          }
+          for(const url of (rea.hints?.imageUrls||[]).slice(0,15)){
+            try{
+              const image=new URL(url);
+              if(!['http:','https:'].includes(image.protocol)||image.username||image.password)continue;
+              const name=safeName(image.href,'jpg');
+              if(!assets.has(image.href)&&assets.size<ASSET_LIMIT){
+                assets.set(image.href,name);reaUsed.images++;
+              }
+            }catch{}
+          }
+        }
       } catch(e) {
         reports.push({url:normalized,error:e.message});
       }
@@ -236,7 +290,21 @@ module.exports = async (req,res) => {
       });
       const pageHtml='<!DOCTYPE html>\n'+$.html();
       if(designMode==='redesign'){
-        let changed=redesign(pageHtml,{nested:file!=='index.html'});
+        let supplemental=[];
+        if(file==='index.html'){
+          for(const [otherUrl,otherFile] of captured){
+            if(otherFile==='index.html')continue;
+            const doc=cheerio.load(await zip.file(otherFile).async('string'));
+            doc('img[src]').each((_,el)=>{
+              let src=doc(el).attr('src')||'';
+              src=src.replace(/^\\.\\.\\//,'');
+              if(src.startsWith('assets/')&&!supplemental.some(x=>x.src===src))
+                supplemental.push({src,alt:doc(el).attr('alt')||''});
+            });
+            if(supplemental.length>=18)break;
+          }
+        }
+        let changed=redesign(pageHtml,{nested:file!=='index.html',extraImages:supplemental});
         zip.file(file,changed);
       }else zip.file(file,pageHtml);
     }
@@ -263,39 +331,18 @@ module.exports = async (req,res) => {
         }else zip.file(local,data);
       } catch(e){assetErrors.push({url,error:e.message});}
     }
-    // Optional REA analysis worker. Never exposes its token or URL to the browser.
-    // Worker must be behind authenticated HTTPS; an unconfigured/unavailable
-    // worker must not break the ordinary Playwright ZIP capture.
-    let reaReport={status:'not_configured'};
-    if (process.env.REA_WORKER_URL && process.env.REA_WORKER_TOKEN && Date.now()-start<DEADLINE-11000) {
-      try {
-        const endpoint=new URL(process.env.REA_WORKER_URL);
-        if (endpoint.protocol!=='https:' || endpoint.username || endpoint.password) {
-          throw new Error('REA_WORKER_URL deve usar HTTPS');
-        }
-        const abort=new AbortController();
-        const timer=setTimeout(()=>abort.abort(),7500);
-        try {
-          const reaResponse=await fetch(new URL(endpoint.pathname.replace(/\/$/,'')+'/analyze',endpoint.origin).href,{
-            method:'POST',signal:abort.signal,
-            headers:{'Content-Type':'application/json',Authorization:'Bearer '+process.env.REA_WORKER_TOKEN},
-            body:JSON.stringify({url:entry.href})
-          });
-          if(!reaResponse.ok) throw new Error('HTTP '+reaResponse.status);
-          const raw=await reaResponse.text();
-          if(raw.length>80000) throw new Error('Relatório REA acima do limite');
-          reaReport=JSON.parse(raw);
-        } finally { clearTimeout(timer); }
-      } catch(e) { reaReport={status:'unavailable',reason:String(e.message||e).slice(0,160)}; }
-    }
+    // Evidence was collected in parallel before page reconstruction. Unlike
+    // the old pipeline, REA findings now influence discovery and asset capture.
+    const reaReport=await reaPromise;
     zip.file('rea-analysis.json',JSON.stringify(reaReport,null,2));
-    zip.file('captura.json',JSON.stringify({source:entry.href,createdAt:new Date().toISOString(),pages:reports,assetsSaved:Object.keys(zip.files).filter(x=>x.startsWith('assets/')).length,assetErrors,reaStatus:reaReport.status,designMode,maxPages:maximumPages,limitations:['Até dez páginas por operação, conforme prazo de execução','Arquivos de terceiros não são incorporados','Scripts e rotas dinâmicas podem não funcionar offline','Use apenas em sites para os quais você tem autorização']},null,2));
+    zip.file('captura.json',JSON.stringify({source:entry.href,createdAt:new Date().toISOString(),pages:reports,assetsSaved:Object.keys(zip.files).filter(x=>x.startsWith('assets/')).length,assetErrors,reaStatus:reaReport.status,reaUsed,designMode,maxPages:maximumPages,limitations:['Até dez páginas por operação, conforme prazo de execução','Arquivos de terceiros não são incorporados','Scripts e rotas dinâmicas podem não funcionar offline','Use apenas em sites para os quais você tem autorização']},null,2));
     const payload=await zip.generateAsync({type:'nodebuffer',compression:'DEFLATE',compressionOptions:{level:5}});
     if(payload.length>ZIP_MAX)throw new Error('ZIP excedeu o limite');
     res.setHeader('Content-Type','application/zip');
     res.setHeader('Content-Disposition','attachment; filename="sitecloner-projeto.zip"');
     res.setHeader('X-SiteCloner-Pages',String(reports.filter(x=>x.file).length));
-    res.setHeader('Access-Control-Expose-Headers','X-SiteCloner-Pages');
+    res.setHeader('X-SiteCloner-REA-Status',reaReport.status);
+    res.setHeader('Access-Control-Expose-Headers','X-SiteCloner-Pages, X-SiteCloner-REA-Status');
     return res.status(200).send(payload);
   }catch(e){
     console.error('capture error',e.message);
