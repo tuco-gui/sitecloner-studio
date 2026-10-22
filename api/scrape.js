@@ -124,7 +124,7 @@ module.exports = async (req,res) => {
         const endpoint=new URL(process.env.REA_WORKER_URL);
         if(endpoint.protocol!=='https:'||endpoint.username||endpoint.password)
           throw new Error('Endpoint REA exige HTTPS');
-        const path=endpoint.pathname.replace(/\\/$/,'')+'/analyze';
+        const path=(endpoint.pathname.endsWith('/')?endpoint.pathname.slice(0,-1):endpoint.pathname)+'/analyze';
         const response=await fetch(new URL(path,endpoint.origin),{
           method:'POST',signal:AbortSignal.timeout(14000),
           headers:{'Content-Type':'application/json',Authorization:'Bearer '+process.env.REA_WORKER_TOKEN},
@@ -180,7 +180,7 @@ module.exports = async (req,res) => {
       const xml=await fetchXml(sitemapHref);
       const found=extractLocs(xml,origin);
       sitemapUrls=found.filter(x=>isPageUrl(x,origin));
-      const nested=found.filter(x=>/\\.xml(?:\\?|$)/i.test(x)).slice(0,5);
+      const nested=found.filter(x=>{try{return new URL(x).pathname.endsWith('.xml')}catch{return false}}).slice(0,5);
       for(const child of nested){
         try{
           const childXml=await fetchXml(child);
@@ -297,7 +297,7 @@ module.exports = async (req,res) => {
             const doc=cheerio.load(await zip.file(otherFile).async('string'));
             doc('img[src]').each((_,el)=>{
               let src=doc(el).attr('src')||'';
-              src=src.replace(/^\\.\\.\\//,'');
+              if(src.startsWith('../'))src=src.slice(3);
               if(src.startsWith('assets/')&&!supplemental.some(x=>x.src===src))
                 supplemental.push({src,alt:doc(el).attr('alt')||''});
             });
