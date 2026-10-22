@@ -6,9 +6,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm install --omit=dev --no-audit --no-fund \
-    && npm install --no-audit --no-fund --no-save rea-agents@6.7.0
+    && npm install -g --no-audit --no-fund rea-agents@6.7.0
 COPY worker/server.js /app/worker/server.js
-ENV CHROMIUM_PATH=/usr/bin/chromium PORT=8790 HOST=0.0.0.0
+ENV CHROMIUM_PATH=/usr/bin/chromium PORT=8790 HOST=0.0.0.0 HOME=/tmp
 USER node
 EXPOSE 8790
 ENTRYPOINT ["/usr/bin/tini","--"]
