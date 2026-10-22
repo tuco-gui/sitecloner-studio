@@ -17,6 +17,7 @@ main{max-width:1090px;margin:36px auto;padding:0 20px}.logo{font-weight:800;font
 <h2>Novo projeto</h2>
 <div class="grid"><div class="field"><label for="targetUrl">URL do site</label><input id="targetUrl" type="url" placeholder="https://exemplo.com.br" autocomplete="url" spellcheck="false"></div>
 <div class="field"><label for="engine">Motor de captura</label><select id="engine"><option value="advanced" selected>Fiel — Playwright (recomendado)</option><option value="basic">Rápido — HTML público (sem fidelidade)</option></select></div></div>
+<div class="field"><label for="accessKey">Chave de acesso à captura</label><input id="accessKey" type="password" autocomplete="off" spellcheck="false" placeholder="Chave administrativa do SiteCloner"></div>
 <div class="field"><label for="projectType">Tipo de projeto</label><select id="projectType"><option value="site">Site</option><option value="webapp">Aplicativo web (captura inicial)</option></select></div>
 <div class="actions"><button id="cloneBtn" type="button">Raspar & Clonar</button><button id="resetBtn" class="secondary" type="button">Novo projeto / Limpar</button></div>
 <div class="meta">A prévia fiel usa os arquivos CSS e imagens capturados. Modo rápido é apenas extração de HTML, sem garantia de layout. Playwright tenta coletar até 3 páginas e recursos. Aplicativos web complexos exigem reconstrução adicional; o código de backend original não é recuperado.</div>
@@ -110,6 +111,7 @@ async function preview(){
 async function clone(){
   if(inProgress)return;
   let url;try{url=new URL($('targetUrl').value.trim());if(!['http:','https:'].includes(url.protocol))throw Error();}catch{setStatus('Informe uma URL válida, começando por https://','error');return;}
+  const accessKey=$('accessKey').value.trim();if(!accessKey){setStatus('Informe a chave de acesso para iniciar a captura.','error');return;}
   inProgress=true;lastZip=null;lastManifest=null;lastUrl=url.href;aborter=new AbortController();
   $('details').classList.add('hidden');$('previewPanel').classList.add('hidden');$('downloadBtn').disabled=true;$('previewBtn').disabled=true;
   $('cloneBtn').disabled=true;$('cloneBtn').textContent='Capturando...';
@@ -117,7 +119,7 @@ async function clone(){
   setStatus('Conectando ao servidor e capturando '+url.hostname+' ('+(mode==='advanced'?'Playwright':'HTML público')+'). Aguarde...');
   const timer=setTimeout(()=>aborter.abort(),timeout);
   try{
-    const response=await fetch('/api/scrape',{method:'POST',signal:aborter.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({url:url.href,mode})});
+    const response=await fetch('/api/scrape',{method:'POST',signal:aborter.signal,headers:{'Content-Type':'application/json','x-sitecloner-key':accessKey},body:JSON.stringify({url:url.href,mode})});
     if(!response.ok){
       const text=await response.text();let error;
       try{error=JSON.parse(text).error;}catch{error=text.slice(0,240);}
