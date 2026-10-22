@@ -1,5 +1,6 @@
 const {checkSession,validOrigin}=require('../lib/session-auth');
 const {css: redesignCss,redesign}=require('../lib/redesign');
+const {rewriteCss}=require('../lib/rewrite-css');
 const { chromium: playwright } = require('playwright-core');
 const chromium = require('@sparticuz/chromium');
 const cheerio = require('cheerio');
@@ -252,7 +253,14 @@ module.exports = async (req,res) => {
         const data=await response.body();
         if(data.length>ASSET_MAX || bytes+data.length>ZIP_MAX)throw new Error('Arquivo excedeu limites');
         bytes+=data.length;
-        zip.file(local,data);
+        if(local.endsWith('.css')){
+          const rewritten=rewriteCss(data.toString('utf8'),url,(reference)=>{
+            const name=safeName(reference,'bin');
+            if(!assets.has(reference)&&assets.size<ASSET_LIMIT)assets.set(reference,name);
+            return './'+name.split('/').pop();
+          });
+          zip.file(local,rewritten);
+        }else zip.file(local,data);
       } catch(e){assetErrors.push({url,error:e.message});}
     }
     // Optional REA analysis worker. Never exposes its token or URL to the browser.
