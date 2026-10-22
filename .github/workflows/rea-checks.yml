@@ -1,0 +1,63 @@
+name: SiteCloner checks
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, feat/rea-integration]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install --ignore-scripts --no-audit --no-fund
+      - run: node --check worker/server.js && node --check lib/rea-bridge.js && node --check api/scrape.js
+      - run: node --test test/*.test.js
+
+  worker-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build --file worker/Dockerfile --tag sitecloner-rea-worker:test .
+
+  rea-browser-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build production worker image
+        run: docker build -f worker/Dockerfile -t sitecloner-rea-worker:smoke .
+      - name: Start isolated production image
+        run: |
+          docker run -d --name rea-smoke --memory=1024m --cpus=1 \
+            -p 127.0.0.1:8790:8790 \
+            -e REA_WORKER_TOKEN=ci-local-token \
+            -e ALLOWED_HOSTS=example.com \
+            sitecloner-rea-worker:smoke
+          for n in $(seq 1 25); do
+            if curl --silent --fail http://127.0.0.1:8790/health; then break; fi
+            sleep 1
+          done
+      - name: Verify CDP and REA analysis of permitted example.com
+        run: |
+          STATUS=$(curl -sS --max-time 90 -o /tmp/result.json -w '%{http_code}' \
+            -X POST http://127.0.0.1:8790/analyze \
+            -H 'Authorization: Bearer ci-local-token' \
+            -H 'Content-Type: application/json' \
+            -d '{"url":"https://example.com"}')
+          node -e "const fs=require('fs');const d=JSON.parse(fs.readFileSync('/tmp/result.json','utf8'));console.log(JSON.stringify({httpStatus:process.argv[1],status:d.status,tool:d.tool,error:d.error}));if(process.argv[1]!=='200'||d.status!=='ok')process.exit(1)" "$STATUS"
+      - name: Container diagnostics on failure
+        if: failure()
+        run: docker logs --tail 100 rea-smoke || true
+      - name: Remove ephemeral container
+        if: always()
+        run: docker rm -f rea-smoke || true

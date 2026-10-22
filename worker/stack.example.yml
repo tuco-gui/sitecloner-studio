@@ -1,0 +1,26 @@
+# EXEMPLO, NAO IMPLANTAR SEM CONFIGURAR TLS/AUTENTICACAO
+# Worker REA separado do Gateway e do REA existente.
+# A VPS nao publica esta porta para a internet.
+services:
+  sitecloner-rea-worker:
+    image: sitecloner-rea-worker:review
+    environment:
+      PORT: "8790"
+      HOST: "0.0.0.0"
+      ALLOWED_HOSTS: "example.com"
+      REA_COMMAND: "rea"
+      # Em producao, token deve vir de secret/gerenciador externo.
+      REA_WORKER_TOKEN: "${REA_WORKER_TOKEN:?configure_secret}"
+    ports:
+      - "127.0.0.1:8790:8790"
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m,noexec,nosuid
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 1536m
+    cpus: "0.75"
+    pids_limit: 384
+    restart: "no"
