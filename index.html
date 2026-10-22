@@ -11,26 +11,31 @@ main{max-width:1090px;margin:36px auto;padding:0 20px}.logo{font-weight:800;font
 </style>
 </head>
 <body>
-<header><div><div class="logo">▣ SiteCloner Studio <span class="pill">3.1</span></div><div class="muted">Captura real de páginas web e exportação do projeto</div></div><div class="actions"><button id="downloadBtn" class="secondary" disabled>Baixar ZIP</button><button id="previewBtn" class="secondary" disabled>Ver clone ativo</button></div></header>
+<header><div><div class="logo">▣ SiteCloner Studio <span class="pill">4.0</span></div><div class="muted">Captura real de páginas web e exportação do projeto</div></div><div class="actions"><button id="downloadBtn" class="secondary" disabled>Baixar ZIP</button><button id="previewBtn" class="secondary" disabled>Ver clone ativo</button></div></header>
 <main>
+<section id="loginPanel" class="panel"><h2>Entrar no SiteCloner</h2><div class="grid"><div class="field"><label for="loginEmail">E-mail</label><input id="loginEmail" type="email" autocomplete="username" placeholder="seu@email.com"></div><div class="field"><label for="loginPassword">Senha</label><input id="loginPassword" type="password" autocomplete="current-password" placeholder="Sua senha"></div></div><div class="actions"><button type="button" id="loginBtn">Entrar</button></div><p id="loginMessage" class="muted" aria-live="polite">Entre uma vez e mantenha a sessão ativa neste navegador.</p></section><div id="appContent" class="hidden">
 <section class="panel">
 <h2>Novo projeto</h2>
 <div class="grid"><div class="field"><label for="targetUrl">URL do site</label><input id="targetUrl" type="url" placeholder="https://exemplo.com.br" autocomplete="url" spellcheck="false"></div>
 <div class="field"><label for="engine">Motor de captura</label><select id="engine"><option value="advanced" selected>Fiel — Playwright (recomendado)</option><option value="basic">Rápido — HTML público (sem fidelidade)</option></select></div></div>
-<div class="field"><label for="accessKey">Chave de acesso à captura</label><input id="accessKey" type="password" autocomplete="off" spellcheck="false" placeholder="Chave administrativa do SiteCloner"></div>
-<div class="field"><label for="projectType">Tipo de projeto</label><select id="projectType"><option value="site">Site</option><option value="webapp">Aplicativo web (captura inicial)</option></select></div>
+
+<div class="grid"><div class="field"><label for="designMode">Resultado desejado</label><select id="designMode"><option value="faithful">Clonagem fiel — preservar o visual original</option><option value="redesign">Novo design — preservar conteúdo, imagens e logo</option></select></div><div class="field"><label for="maxPages">Páginas para capturar</label><select id="maxPages"><option value="3">3 páginas</option><option value="5">5 páginas</option><option value="10" selected>Até 10 páginas</option></select></div></div><div class="field"><label for="projectType">Tipo de projeto</label><select id="projectType"><option value="site">Site</option><option value="webapp">Aplicativo web (captura inicial)</option></select></div>
 <div class="actions"><button id="cloneBtn" type="button">Raspar & Clonar</button><button id="resetBtn" class="secondary" type="button">Novo projeto / Limpar</button></div>
-<div class="meta">A prévia fiel usa os arquivos CSS e imagens capturados. Modo rápido é apenas extração de HTML, sem garantia de layout. Playwright tenta coletar até 3 páginas e recursos. Aplicativos web complexos exigem reconstrução adicional; o código de backend original não é recuperado.</div>
+<div class="meta">A prévia fiel usa os arquivos CSS e imagens capturados. Modo rápido é apenas extração de HTML, sem garantia de layout. Playwright tenta coletar até 10 páginas e recursos conforme o tempo disponível. O novo design é uma proposta visual automatizada; não recupera senhas, sessões nem o backend do site original. Aplicativos web complexos exigem reconstrução adicional; o código de backend original não é recuperado.</div>
 </section>
 <section class="panel"><h2>Resultado da captura</h2><div id="status" class="status" role="status" aria-live="polite">Nenhum projeto iniciado. Informe uma URL para começar.</div>
 <div id="details" class="hidden"><h3 id="projectTitle"></h3><div id="projectInfo" class="muted"></div><div class="actions" style="margin-top:18px"><button id="saveBtn">Baixar projeto ZIP</button><button id="viewBtn" class="secondary">Abrir prévia</button></div></div>
 </section>
 <section id="previewPanel" class="panel hidden"><h2>Prévia do HTML capturado</h2><div class="muted" style="margin-bottom:15px">Prévia isolada. Para navegação entre páginas e arquivos completos, extraia o ZIP em seu computador.</div><iframe id="previewFrame" sandbox="" referrerpolicy="no-referrer" title="Prévia do site capturado"></iframe></section>
+</div>
 </main>
 <script>
 (function(){
 'use strict';
 const $=id=>document.getElementById(id);
+async function refreshSession(){try{const r=await fetch("/api/session",{credentials:"same-origin"});const data=await r.json();$("loginPanel").classList.toggle("hidden",!!data.authenticated);$("appContent").classList.toggle("hidden",!data.authenticated)}catch{$("loginPanel").classList.remove("hidden");$("appContent").classList.add("hidden")}}
+async function login(){const r=await fetch("/api/login",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:$("loginEmail").value.trim(),password:$("loginPassword").value})});const data=await r.json();$("loginPassword").value="";if(!r.ok){$("loginMessage").textContent=data.error||"Falha no login";return}await refreshSession()}
+$("loginBtn").addEventListener("click",login);$("loginPassword").addEventListener("keydown",e=>{if(e.key==="Enter")login()});refreshSession();
 let lastZip=null,lastUrl=null,lastManifest=null,inProgress=false,aborter=null;
 function setStatus(message,type){const el=$('status');el.textContent=message;el.className='status'+(type?' '+type:'');}
 function clearResult(){
@@ -111,7 +116,6 @@ async function preview(){
 async function clone(){
   if(inProgress)return;
   let url;try{url=new URL($('targetUrl').value.trim());if(!['http:','https:'].includes(url.protocol))throw Error();}catch{setStatus('Informe uma URL válida, começando por https://','error');return;}
-  const accessKey=$('accessKey').value.trim();if(!accessKey){setStatus('Informe a chave de acesso para iniciar a captura.','error');return;}
   inProgress=true;lastZip=null;lastManifest=null;lastUrl=url.href;aborter=new AbortController();
   $('details').classList.add('hidden');$('previewPanel').classList.add('hidden');$('downloadBtn').disabled=true;$('previewBtn').disabled=true;
   $('cloneBtn').disabled=true;$('cloneBtn').textContent='Capturando...';
@@ -119,8 +123,9 @@ async function clone(){
   setStatus('Conectando ao servidor e capturando '+url.hostname+' ('+(mode==='advanced'?'Playwright':'HTML público')+'). Aguarde...');
   const timer=setTimeout(()=>aborter.abort(),timeout);
   try{
-    const response=await fetch('/api/scrape',{method:'POST',signal:aborter.signal,headers:{'Content-Type':'application/json','x-sitecloner-key':accessKey},body:JSON.stringify({url:url.href,mode})});
+    const response=await fetch('/api/scrape',{method:'POST',signal:aborter.signal,credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:url.href,mode,designMode:$('designMode').value,maxPages:Number($('maxPages').value)})});
     if(!response.ok){
+      if(response.status===401)await refreshSession();
       const text=await response.text();let error;
       try{error=JSON.parse(text).error;}catch{error=text.slice(0,240);}
       throw new Error(error||'Erro HTTP '+response.status);
@@ -132,7 +137,7 @@ async function clone(){
     $('downloadBtn').disabled=false;$('previewBtn').disabled=false;
     $('details').classList.remove('hidden');
     $('projectTitle').textContent='Captura disponível para download';
-    $('projectInfo').textContent='Origem: '+url.href+' • ZIP: '+(body.size/1024).toFixed(1)+' KB • Motor: '+mode+'.';
+    $('projectInfo').textContent='Origem: '+url.href+' • ZIP: '+(body.size/1024).toFixed(1)+' KB • Motor: '+mode+' • Páginas salvas: '+(response.headers.get('X-SiteCloner-Pages')||'?')+' • Visual: '+$('designMode').selectedOptions[0].text+'.';
     setStatus('Captura finalizada. Clique em Baixar ZIP para receber o projeto.','success');
   }catch(e){
     const msg=e.name==='AbortError'?'A captura excedeu o tempo limite. Tente o modo Rápido ou um site menor.':e.message;
