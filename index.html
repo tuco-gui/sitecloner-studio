@@ -26,7 +26,7 @@ main{max-width:1090px;margin:36px auto;padding:0 20px}.logo{font-weight:800;font
 <section class="panel"><h2>Resultado da captura</h2><div id="status" class="status" role="status" aria-live="polite">Nenhum projeto iniciado. Informe uma URL para começar.</div>
 <div id="details" class="hidden"><h3 id="projectTitle"></h3><div id="projectInfo" class="muted"></div><div class="actions" style="margin-top:18px"><button id="saveBtn">Baixar projeto ZIP</button><button id="viewBtn" class="secondary">Abrir prévia</button></div></div>
 </section>
-<section id="previewPanel" class="panel hidden"><h2>Prévia do HTML capturado</h2><div class="muted" style="margin-bottom:15px">Prévia isolada. Para navegação entre páginas e arquivos completos, extraia o ZIP em seu computador.</div><iframe id="previewFrame" sandbox="" referrerpolicy="no-referrer" title="Prévia do site capturado"></iframe></section>
+<section id="previewPanel" class="panel hidden"><h2>Prévia do HTML capturado</h2><div class="field"><label for="previewPage">Página capturada</label><select id="previewPage"></select></div><div class="muted" style="margin-bottom:15px">Prévia isolada. Para navegação entre páginas e arquivos completos, extraia o ZIP em seu computador.</div><iframe id="previewFrame" sandbox="" referrerpolicy="no-referrer" title="Prévia do site capturado"></iframe></section>
 </div>
 </main>
 <script>
@@ -64,7 +64,15 @@ async function preview(){
       });
     }
     const zip=await JSZip.loadAsync(lastZip);
-    const entry=zip.file('index.html');
+    const available=(manifestCandidate=>manifestCandidate)(zip.file('captura.json'));
+    let pageRecords=[];
+    if(available){try{pageRecords=JSON.parse(await available.async('string')).pages.filter(x=>x.file)}catch{}}
+    const picker=$('previewPage');
+    const chosen=picker.value;
+    picker.replaceChildren();
+    for(const item of pageRecords){const o=document.createElement('option');o.value=item.file;o.textContent=(item.title||item.url||item.file)+' — '+item.file;picker.append(o)}
+    if(pageRecords.some(x=>x.file===chosen))picker.value=chosen;
+    const entry=zip.file(picker.value||'index.html');
     if(!entry)throw new Error('O arquivo index.html não está no ZIP.');
     const manifestFile=zip.file('captura.json');
     const manifest=manifestFile?JSON.parse(await manifestFile.async('string')):{};
@@ -82,7 +90,7 @@ async function preview(){
     }
     // Inline stored CSS so iframe srcdoc has the actual stylesheet.
     for(const link of [...doc.querySelectorAll('link[rel~="stylesheet"][href]')]){
-      const href=link.getAttribute('href').replace(/^\.\//,'');
+      const href=link.getAttribute('href').replace(/^(?:\.\.\/|\.\/)+/,'');
       const file=zip.file(href);
       if(file){
         let css=await file.async('string');
@@ -98,7 +106,7 @@ async function preview(){
       for(const attr of ['src','poster','href']){
         const raw=el.getAttribute(attr);
         if(!raw)continue;
-        const key=raw.replace(/^\.\//,'');
+        const key=raw.replace(/^(?:\.\.\/|\.\/)+/,'');
         if(assets[key])el.setAttribute(attr,assets[key]);
       }
     }
@@ -154,6 +162,7 @@ $('downloadBtn').addEventListener('click',download);
 $('saveBtn').addEventListener('click',download);
 $('previewBtn').addEventListener('click',preview);
 $('viewBtn').addEventListener('click',preview);
+$('previewPage').addEventListener('change',preview);
 $('targetUrl').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();clone();}});
 window.addEventListener('unhandledrejection',e=>{setStatus('Erro inesperado: '+String(e.reason?.message||e.reason),'error');});
 })();
