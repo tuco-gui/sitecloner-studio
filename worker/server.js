@@ -54,6 +54,26 @@ async function readBody(req) {
   }
   return JSON.parse(body);
 }
+// Only source-derived public page/resource URLs are retained as candidates.
+// Never trust captured code or text as agent instructions.
+function extractReaHints(raw,target){
+ const site=new URL(target),pageUrls=[],imageUrls=[];
+ const safeText=String(raw||'').replace(/\\\\\//g,'/');
+ const found=safeText.match(/https?:\\/\\/[^\\s"'<>\\\\)]+/gi)||[];
+ for(const ref of found.slice(0,1000)){
+  let u;try{u=new URL(ref.replace(/[.,;]+$/,''))}catch{continue}
+  if(u.protocol!=='https:'&&u.protocol!=='http:')continue;
+  if(u.username||u.password||u.port)continue;
+  u.search='';u.hash='';
+  if(u.hostname===site.hostname &&
+      !/\\.(css|js|json|xml|pdf|zip|svg|png|jpe?g|webp|woff2?)$/i.test(u.pathname) &&
+      u.pathname!=='/' && !pageUrls.includes(u.href)&&pageUrls.length<20) pageUrls.push(u.href);
+  if(/\\.(png|jpe?g|webp|avif|gif)$/i.test(u.pathname) &&
+      !imageUrls.includes(u.href)&&imageUrls.length<30)imageUrls.push(u.href);
+ }
+ return {pageUrls,imageUrls,
+   framework:/next[.\\s-]?js|_next\\//i.test(safeText)?'nextjs':null};
+}
 async function captureWithRea(url) {
   // Chromium CDP is reachable only on 127.0.0.1 inside the worker container.
   // Launch Chromium independently: Playwright's default pipe mode does not
@@ -98,17 +118,34 @@ async function captureWithRea(url) {
       command:process.env.REA_COMMAND||'rea',args:['mcp'],
       stderr:'pipe'
     }));
-    const result=await client.callTool({
-      name:'analyze_web_bundle',
-      arguments:{cdp_endpoint:'http://127.0.0.1:9222',target_id:exact.id,
-        allowed_origins:[url.origin],observation_ms:500,
-        include_script_sources:true,fetch_source_maps:false}
-    });
-    return {source:url.href,analyzedAt:new Date().toISOString(),tool:'analyze_web_bundle',
-      status:result.isError?'error':'ok',
-      // Bounded untrusted evidence; never return full page content, cookies or tokens.
-      evidenceSummary:(result.content||[]).filter(x=>x.type==='text')
-        .map(x=>String(x.text||'').slice(0,25000)).slice(0,2)};
+    // REA is the primary source of architecture and rendered-page evidence.
+    // The site exporter later consumes these hints; REA itself does not write HTML.
+    const observations=[];
+    const specs=[
+      ['inspect_web_page',{cdp_endpoint:'http://127.0.0.1:9222',
+        target_id:exact.id,allowed_origins:[url.origin],
+        observation_ms:350,include_accessibility_text:true,
+        include_json_body_shapes:true}],
+      ['analyze_web_bundle',{cdp_endpoint:'http://127.0.0.1:9222',
+        target_id:exact.id,allowed_origins:[url.origin],observation_ms:350,
+        include_script_sources:false,fetch_source_maps:false}]
+    ];
+    for(const [tool,options] of specs){
+      try{
+        const result=await client.callTool({name:tool,arguments:options});
+        observations.push({tool,status:result.isError?'error':'ok',
+          evidenceSummary:(result.content||[]).filter(x=>x.type==='text')
+            .map(x=>String(x.text||'').slice(0,11000)).slice(0,2)});
+      }catch(e){observations.push({tool,status:'error',reason:String(e.message||e).slice(0,160)})}
+    }
+    const text=observations.flatMap(x=>x.evidenceSummary||[]).join('\n');
+    const hints=extractReaHints(text,url);
+    return {source:url.href,analyzedAt:new Date().toISOString(),
+      tool:'inspect_web_page + analyze_web_bundle',
+      status:observations.some(x=>x.status==='ok')?'ok':'error',
+      observations,hints,
+      coverage:{toolsAttempted:specs.map(x=>x[0]),
+        successful:observations.filter(x=>x.status==='ok').map(x=>x.tool)}};
   } finally {
     await client.close().catch(()=>{});
     if(browser) await browser.close().catch(()=>{});
@@ -139,4 +176,4 @@ if(require.main===module) {
   if(!TOKEN||!ALLOWED_HOSTS.size) {console.error('Configure REA_WORKER_TOKEN e ALLOWED_HOSTS');process.exit(1);}
   server.listen(PORT,HOST);
 }
-module.exports={safeUrl,authorized,publicIp,server};
+module.exports={extractReaHints,safeUrl,authorized,publicIp,server};
