@@ -49,10 +49,34 @@ async function analyze(source){
  const raw=await res.text();if(raw.length>100000)throw Error('Relatório REA excedeu o limite');
  return JSON.parse(raw);
 }
+async function analyzeSite(source){
+ const first=await analyze(source);
+ if(first.status!=='ok')return first;
+ const origin=new URL(source).origin;
+ const hints=first.hints||{pageUrls:[],imageUrls:[]};
+ const candidates=(hints.pageUrls||[]).filter(u=>{try{return new URL(u).origin===origin&&u!==source}catch{return false}}).slice(0,2);
+ const observations=[...(first.observations||[])];
+ const pages=[source];
+ const images=new Set(hints.imageUrls||[]);
+ const urls=new Set(hints.pageUrls||[]);
+ for(const url of candidates){
+  try{
+   const next=await analyze(url);
+   if(next.status!=='ok')continue;
+   pages.push(url);
+   for(const observation of (next.observations||[]).filter(x=>x.status==='ok').slice(0,2)){
+    observations.push({...observation,pageUrl:url});
+   }
+   for(const x of (next.hints?.imageUrls||[]))if(images.size<45)images.add(x);
+   for(const x of (next.hints?.pageUrls||[]))if(urls.size<45)urls.add(x);
+  }catch{}
+ }
+ return {...first,observations,hints:{...hints,pageUrls:[...urls],imageUrls:[...images]},pagesInspected:pages};
+}
 async function execute(job){
  try{
   await stage(job,'investigating');
-  const rea=await analyze(job.source);
+  const rea=await analyzeSite(job.source);
   await stage(job,'specifying');
   const spec=makeSpec({url:job.source,kind:job.kind,designMode:job.designMode,instructions:job.instructions},rea);
   await fsp.writeFile(path.join(directory(job.id),'site-spec.json'),JSON.stringify(spec,null,2),{mode:0o600});
