@@ -46,9 +46,9 @@ Não adicionar estas variáveis enquanto o endpoint HTTPS autenticado não estiv
 ## Limites desta primeira implementação
 - **Agente de código existe**, mas não está ligado a modelo real nem implantado como serviço persistente.
 - A geração atual é de **frontend React** com dados de demonstração e ativos públicos identificados pelo REA; não descobre segredos nem copia backend fechado.
-- Há validação de contrato, sintaxe/bundling e ZIP; **ainda não há** teste Playwright do código reconstruído, comparação de screenshots, edição/reparo iterativos, preview hospedado ou sandbox completo com execução do aplicativo.
+- Há validação de contrato, compilação/bundling, ZIP e até dois reparos automáticos de erros de compilação; **ainda não há** teste Playwright do código reconstruído, comparação de screenshots, revisão visual iterativa, preview hospedado ou sandbox completo com execução do aplicativo.
 - Um e-commerce pode ter interface de catálogo e carrinho simulados; pagamentos, pedidos e estoque reais exigem integração autorizada do dono.
-- O worker retorna erro explicativo se REA falha em ambas as ferramentas; não faz falso sucesso.
+- O worker exige resultados positivos nas **duas** ferramentas REA; executa inspeções adicionais em até duas rotas internas descobertas quando disponíveis. Não produz falso sucesso.
 - A fila usa filesystem único; não adicionar réplicas sem migrar para storage compartilhado/banco.
 
 ## Testes de aceitação próximos
