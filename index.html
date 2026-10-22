@@ -19,12 +19,12 @@ main{max-width:1090px;margin:36px auto;padding:0 20px}.logo{font-weight:800;font
 <div class="grid"><div class="field"><label for="targetUrl">URL do site</label><input id="targetUrl" type="url" placeholder="https://exemplo.com.br" autocomplete="url" spellcheck="false"></div>
 <div class="field"><label for="engine">Motor de captura</label><select id="engine"><option value="advanced" selected>Fiel — Playwright + análise REA (recomendado)</option><option value="basic">Rápido — HTML público (sem fidelidade)</option></select></div></div>
 
-<div class="grid"><div class="field"><label for="designMode">Resultado desejado</label><select id="designMode"><option value="faithful">Clonagem fiel — preservar o visual original</option><option value="redesign">Novo design — preservar conteúdo, imagens e logo</option></select></div><div class="field"><label for="maxPages">Páginas para capturar</label><select id="maxPages"><option value="3">3 páginas</option><option value="5">5 páginas</option><option value="10" selected>Até 10 páginas</option></select></div></div><div class="field"><label for="projectType">Tipo de projeto</label><select id="projectType"><option value="site">Site</option><option value="webapp">Aplicativo web (captura inicial)</option></select></div>
-<div class="actions"><button id="cloneBtn" type="button">Raspar & Clonar</button><button id="resetBtn" class="secondary" type="button">Novo projeto / Limpar</button></div>
-<div class="meta">A prévia fiel usa os arquivos CSS e imagens capturados. Modo rápido é apenas extração de HTML, sem garantia de layout. Playwright tenta coletar até 10 páginas e recursos conforme o tempo disponível. O novo design é uma proposta visual automatizada; não recupera senhas, sessões nem o backend do site original. Aplicativos web complexos exigem reconstrução adicional; o código de backend original não é recuperado.</div>
+<div class="grid"><div class="field"><label for="designMode">Resultado desejado</label><select id="designMode"><option value="faithful">Clonagem fiel — preservar o visual original</option><option value="redesign">Novo design — preservar conteúdo, imagens e logo</option></select></div><div class="field"><label for="maxPages">Páginas para capturar</label><select id="maxPages"><option value="3">3 páginas</option><option value="5">5 páginas</option><option value="10" selected>Até 10 páginas</option></select></div></div><div class="field"><label for="projectType">Tipo de projeto</label><select id="projectType"><option value="site">Site</option><option value="webapp">Aplicativo web (captura inicial)</option><option value="ecommerce">Loja virtual / E-commerce</option></select></div>
+<div class="actions"><button id="cloneBtn" type="button">Raspar & Clonar</button><button id="buildAIBtn" type="button" class="secondary hidden">Reconstruir com IA</button><button id="resetBtn" class="secondary" type="button">Novo projeto / Limpar</button></div>
+<div class="meta" id="builderHint">Agente de IA programadora: verificando disponibilidade.</div><div class="meta">A prévia fiel usa os arquivos CSS e imagens capturados. Modo rápido é apenas extração de HTML, sem garantia de layout. Playwright tenta coletar até 10 páginas e recursos conforme o tempo disponível. O novo design é uma proposta visual automatizada; não recupera senhas, sessões nem o backend do site original. Aplicativos web complexos exigem reconstrução adicional; o código de backend original não é recuperado.</div>
 </section>
 <section class="panel"><h2>Resultado da captura</h2><div id="status" class="status" role="status" aria-live="polite">Nenhum projeto iniciado. Informe uma URL para começar.</div>
-<div id="details" class="hidden"><h3 id="projectTitle"></h3><div id="projectInfo" class="muted"></div><div class="actions" style="margin-top:18px"><button id="saveBtn">Baixar projeto ZIP</button><button id="viewBtn" class="secondary">Abrir prévia</button></div></div>
+<div id="builderResult" class="hidden"><a id="builderDownload" href="#">Baixar projeto React reconstruído (ZIP)</a></div><div id="details" class="hidden"><h3 id="projectTitle"></h3><div id="projectInfo" class="muted"></div><div class="actions" style="margin-top:18px"><button id="saveBtn">Baixar projeto ZIP</button><button id="viewBtn" class="secondary">Abrir prévia</button></div></div>
 </section>
 <section id="previewPanel" class="panel hidden"><h2>Prévia do HTML capturado</h2><div class="field"><label for="previewPage">Página capturada</label><select id="previewPage"></select></div><div class="muted" style="margin-bottom:15px">Prévia isolada. Para navegação entre páginas e arquivos completos, extraia o ZIP em seu computador.</div><iframe id="previewFrame" sandbox="" referrerpolicy="no-referrer" title="Prévia do site capturado"></iframe></section>
 </div>
@@ -33,8 +33,8 @@ main{max-width:1090px;margin:36px auto;padding:0 20px}.logo{font-weight:800;font
 (function(){
 'use strict';
 const $=id=>document.getElementById(id);
-async function refreshSession(){try{const r=await fetch("/api/session",{credentials:"same-origin"});const data=await r.json();$("loginPanel").classList.toggle("hidden",!!data.authenticated);$("appContent").classList.toggle("hidden",!data.authenticated);$("logoutBtn").classList.toggle("hidden",!data.authenticated)}catch{$("loginPanel").classList.remove("hidden");$("appContent").classList.add("hidden")}}
-async function login(){const r=await fetch("/api/login",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:$("loginEmail").value.trim(),password:$("loginPassword").value})});const data=await r.json();$("loginPassword").value="";if(!r.ok){$("loginMessage").textContent=data.error||"Falha no login";return}await refreshSession()}
+async function refreshSession(){try{const r=await fetch("/api/session",{credentials:"same-origin"});const data=await r.json();$("loginPanel").classList.toggle("hidden",!!data.authenticated);$("appContent").classList.toggle("hidden",!data.authenticated);$("logoutBtn").classList.toggle("hidden",!data.authenticated);if(data.authenticated)refreshBuilderCapability()}catch{$("loginPanel").classList.remove("hidden");$("appContent").classList.add("hidden")}}
+async function login(){const r=await fetch("/api/login",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:$("loginEmail").value.trim(),password:$("loginPassword").value})});const data=await r.json();$("loginPassword").value="";if(!r.ok){$("loginMessage").textContent=data.error||"Falha no login";return}await refreshSession();await refreshBuilderCapability()}
 $("logoutBtn").addEventListener("click",async()=>{await fetch("/api/logout",{method:"POST",credentials:"same-origin"});await refreshSession()});
 $("loginBtn").addEventListener("click",login);$("loginPassword").addEventListener("keydown",e=>{if(e.key==="Enter")login()});refreshSession();
 let lastZip=null,lastUrl=null,lastManifest=null,inProgress=false,aborter=null;
@@ -158,7 +158,50 @@ async function clone(){
     setStatus('Falha na captura: '+msg,'error');
   }finally{clearTimeout(timer);inProgress=false;aborter=null;$('cloneBtn').disabled=false;$('cloneBtn').textContent='Raspar & Clonar';}
 }
+let activeBuilderJob=null;
+async function refreshBuilderCapability(){
+  try{
+    const r=await fetch('/api/build',{credentials:'same-origin'});
+    const data=await r.json();
+    $('buildAIBtn').classList.toggle('hidden',!r.ok||!data.enabled);
+    $('builderHint').textContent=data.enabled?'Agente IA disponível: gera código React, compila, testa sintaxe e exporta ZIP.':'Agente IA programadora pendente: '+(data.reason||'serviço indisponível')+'. A captura tradicional continua disponível.';
+  }catch{
+    $('buildAIBtn').classList.add('hidden');
+    $('builderHint').textContent='Agente IA indisponível. A captura tradicional continua disponível.';
+  }
+}
+async function reconstructWithAI(){
+ if(activeBuilderJob)return;
+ const source=$('targetUrl').value.trim();
+ try{const u=new URL(source);if(!['http:','https:'].includes(u.protocol))throw Error('URL inválida');}
+ catch{setStatus('Digite a URL do site antes de iniciar a reconstrução com IA.','error');return;}
+ $('builderResult').classList.add('hidden');
+ $('buildAIBtn').disabled=true;
+ try{
+  const r=await fetch('/api/build',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:source,kind:$('projectType').value,designMode:$('designMode').value})});
+  const created=await r.json();
+  if(!r.ok)throw Error(created.error||'Agente indisponível');
+  activeBuilderJob=created.id;
+  for(let i=0;i<100;i++){
+   const poll=await fetch('/api/build?id='+encodeURIComponent(activeBuilderJob),{credentials:'same-origin'});
+   const job=await poll.json();
+   if(!poll.ok)throw Error(job.error||'Falha na consulta do trabalho');
+   const labels={queued:'na fila',investigating:'REA investigando',specifying:'especificando',generating:'IA escrevendo o código',compiling:'compilando React',repairing:'IA corrigindo erros de compilação',packaging:'preparando ZIP'};
+   setStatus('Reconstrução IA: '+(labels[job.status]||job.status)+' — '+new URL(source).hostname);
+   if(job.status==='failed')throw Error(job.error||'A reconstrução não foi concluída');
+   if(job.status==='ready'){
+    $('builderDownload').href='/api/build?id='+encodeURIComponent(activeBuilderJob)+'&download=1';
+    $('builderResult').classList.remove('hidden');
+    setStatus('Projeto React compilado. O ZIP com código-fonte, prévia e evidências está disponível.','success');
+    break;
+   }
+   await new Promise(resolve=>setTimeout(resolve,3000));
+  }
+ }catch(e){setStatus('Falha na reconstrução com IA: '+String(e.message||e),'error')}
+ finally{activeBuilderJob=null;$('buildAIBtn').disabled=false}
+}
 $('cloneBtn').addEventListener('click',clone);
+$('buildAIBtn').addEventListener('click',reconstructWithAI);
 $('resetBtn').addEventListener('click',clearResult);
 $('downloadBtn').addEventListener('click',download);
 $('saveBtn').addEventListener('click',download);

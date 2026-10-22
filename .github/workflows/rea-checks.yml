@@ -19,7 +19,7 @@ jobs:
         with:
           node-version: '24'
       - run: npm install --ignore-scripts --no-audit --no-fund
-      - run: node --check worker/server.js && node --check lib/rea-bridge.js && node --check api/scrape.js
+      - run: node --check worker/server.js && node --check lib/rea-bridge.js && node --check api/scrape.js && node --check worker/builder-server.js && node --check api/build.js
       - run: node --test test/*.test.js
 
   worker-image:
@@ -61,3 +61,30 @@ jobs:
       - name: Remove ephemeral container
         if: always()
         run: docker rm -f rea-smoke || true
+
+  builder-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build isolated AI builder image
+        run: docker build --file worker/builder.Dockerfile --tag sitecloner-ai-builder:smoke .
+      - name: Validate fail-closed worker without LLM credentials
+        run: |
+          docker run -d --name ai-builder-smoke --memory=512m --cpus=1 \
+            -p 127.0.0.1:8791:8791 \
+            -e BUILDER_WORKER_TOKEN=local-smoke-token \
+            sitecloner-ai-builder:smoke
+          for i in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:8791/health > /tmp/ai-health.json; then break; fi
+            sleep 1
+          done
+          node -e "const d=require('/tmp/ai-health.json');if(!d.ok||d.ready!==false)process.exit(1)"
+          STATUS=$(curl -s -o /tmp/ai-protected.json -w '%{http_code}' \
+            -X POST http://127.0.0.1:8791/jobs \
+            -H 'Authorization: Bearer local-smoke-token' \
+            -H 'Content-Type: application/json' \
+            -d '{"url":"https://example.com","kind":"site","designMode":"redesign"}')
+          test "$STATUS" = "503"
+      - if: always()
+        run: docker logs --tail 60 ai-builder-smoke || true; docker rm -f ai-builder-smoke || true
