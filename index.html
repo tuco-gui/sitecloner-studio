@@ -17,7 +17,7 @@ main{max-width:1090px;margin:36px auto;padding:0 20px}.logo{font-weight:800;font
 <section class="panel">
 <h2>Novo projeto</h2>
 <div class="grid"><div class="field"><label for="targetUrl">URL do site</label><input id="targetUrl" type="url" placeholder="https://exemplo.com.br" autocomplete="url" spellcheck="false"></div>
-<div class="field"><label for="engine">Motor de captura</label><select id="engine"><option value="advanced" selected>Fiel — Playwright (recomendado)</option><option value="basic">Rápido — HTML público (sem fidelidade)</option></select></div></div>
+<div class="field"><label for="engine">Motor de captura</label><select id="engine"><option value="advanced" selected>Fiel — Playwright + análise REA (recomendado)</option><option value="basic">Rápido — HTML público (sem fidelidade)</option></select></div></div>
 
 <div class="grid"><div class="field"><label for="designMode">Resultado desejado</label><select id="designMode"><option value="faithful">Clonagem fiel — preservar o visual original</option><option value="redesign">Novo design — preservar conteúdo, imagens e logo</option></select></div><div class="field"><label for="maxPages">Páginas para capturar</label><select id="maxPages"><option value="3">3 páginas</option><option value="5">5 páginas</option><option value="10" selected>Até 10 páginas</option></select></div></div><div class="field"><label for="projectType">Tipo de projeto</label><select id="projectType"><option value="site">Site</option><option value="webapp">Aplicativo web (captura inicial)</option></select></div>
 <div class="actions"><button id="cloneBtn" type="button">Raspar & Clonar</button><button id="resetBtn" class="secondary" type="button">Novo projeto / Limpar</button></div>
@@ -150,7 +150,9 @@ async function clone(){
     $('details').classList.remove('hidden');
     $('projectTitle').textContent='Captura disponível para download';
     $('projectInfo').textContent='Origem: '+url.href+' • ZIP: '+(body.size/1024).toFixed(1)+' KB • Motor: '+mode+' • Páginas salvas: '+(response.headers.get('X-SiteCloner-Pages')||'?')+' • Visual: '+$('designMode').selectedOptions[0].text+'.';
-    setStatus('Captura finalizada. Clique em Baixar ZIP para receber o projeto.','success');
+    const reaStatus=response.headers.get('X-SiteCloner-REA-Status')||'não informado';
+    const reaLabel=reaStatus==='ok'?'REA analisou a página e os scripts':reaStatus==='unavailable'?'REA indisponível nesta captura':'REA: '+reaStatus;
+    setStatus('Captura finalizada. '+reaLabel+'. Páginas salvas: '+(response.headers.get('X-SiteCloner-Pages')||'?')+'. Baixe o ZIP para o relatório técnico.','success');
   }catch(e){
     const msg=e.name==='AbortError'?'A captura excedeu o tempo limite. Tente o modo Rápido ou um site menor.':e.message;
     setStatus('Falha na captura: '+msg,'error');
