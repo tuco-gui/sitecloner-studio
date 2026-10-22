@@ -88,6 +88,8 @@ async function captureWithRea(url) {
     });
     const page=await context.newPage();
     await page.goto(url.href,{waitUntil:'domcontentloaded',timeout:15000});
+    const landed=await safeUrl(page.url());
+    if (landed.origin !== url.origin) throw new Error('Redirecionamento fora da origem autorizada');
     await page.waitForTimeout(700);
     const targets=await (await fetch('http://127.0.0.1:9222/json/list')).json();
     const exact=targets.find(t=>t.type==='page' && t.url===page.url());
