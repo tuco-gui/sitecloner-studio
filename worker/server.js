@@ -123,13 +123,13 @@ async function captureWithRea(url) {
     // The site exporter later consumes these hints; REA itself does not write HTML.
     const observations=[];
     const specs=[
+      ['analyze_web_bundle',{cdp_endpoint:'http://127.0.0.1:9222',
+        target_id:exact.id,allowed_origins:[url.origin],observation_ms:500,
+        include_script_sources:true,fetch_source_maps:false}],
       ['inspect_web_page',{cdp_endpoint:'http://127.0.0.1:9222',
         target_id:exact.id,allowed_origins:[url.origin],
         observation_ms:350,include_accessibility_text:true,
-        include_json_body_shapes:true}],
-      ['analyze_web_bundle',{cdp_endpoint:'http://127.0.0.1:9222',
-        target_id:exact.id,allowed_origins:[url.origin],observation_ms:350,
-        include_script_sources:false,fetch_source_maps:false}]
+        include_json_body_shapes:true}]
     ];
     for(const [tool,options] of specs){
       try{
