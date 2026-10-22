@@ -1,0 +1,4 @@
+const test=require('node:test'),assert=require('node:assert/strict'),crypto=require('node:crypto');
+const a=require('../lib/session-auth');
+test('session requires secret and checks signature',()=>{const orig=process.env.SITECLONER_SESSION_SECRET,origEmail=process.env.SITECLONER_LOGIN_EMAIL;try{process.env.SITECLONER_SESSION_SECRET='temporary-test-secret';process.env.SITECLONER_LOGIN_EMAIL='test@example.com';const token=a.makeToken('test@example.com');assert.equal(a.checkSession({headers:{cookie:'sitecloner_session='+token}}),true);assert.equal(a.checkSession({headers:{cookie:'sitecloner_session='+token+'x'}}),false)}finally{if(orig===undefined)delete process.env.SITECLONER_SESSION_SECRET;else process.env.SITECLONER_SESSION_SECRET=orig;if(origEmail===undefined)delete process.env.SITECLONER_LOGIN_EMAIL;else process.env.SITECLONER_LOGIN_EMAIL=origEmail}});
+test('wrong password denied',()=>assert.equal(a.authenticate('any@example.com','invalid'),false));
