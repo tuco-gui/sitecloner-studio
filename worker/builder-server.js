@@ -57,10 +57,26 @@ async function execute(job){
   const spec=makeSpec({url:job.source,kind:job.kind,designMode:job.designMode,instructions:job.instructions},rea);
   await fsp.writeFile(path.join(directory(job.id),'site-spec.json'),JSON.stringify(spec,null,2),{mode:0o600});
   await stage(job,'generating');
-  const {output,usage}=await generateWithModel(spec,modelConfig({...process.env,BUILDER_MODEL_API_KEY:MODEL_KEY}));
-  const project=normalizeProject(output,spec);
-  await stage(job,'compiling');
-  const preview=await compileProject(project);
+  const config=modelConfig({...process.env,BUILDER_MODEL_API_KEY:MODEL_KEY});
+  let generated=await generateWithModel(spec,config);
+  let project,preview;
+  const usage=[generated.usage];
+  for(let attempt=0;attempt<3;attempt++){
+   try{
+    project=normalizeProject(generated.output,spec);
+    await stage(job,'compiling');
+    preview=await compileProject(project);
+    break;
+   }catch(e){
+    if(attempt===2)throw Error('Falha na compilação após reparos: '+String(e.message||e).slice(0,200));
+    await stage(job,'repairing');
+    generated=await generateWithModel(spec,config,fetch,{
+      compilerError:String(e.message||e),
+      previousProject:generated.output
+    });
+    usage.push(generated.usage);
+   }
+  }
   await stage(job,'packaging');
   const {buffer,sha256}=await projectZip(project,preview);
   await fsp.writeFile(path.join(directory(job.id),'project.zip'),buffer,{mode:0o600,flag:'wx'});
@@ -84,7 +100,7 @@ async function load(){
   try{
    const j=JSON.parse(await fsp.readFile(path.join(ROOT,item.name,'status.json'),'utf8'));
    if(j.id!==item.name)continue;
-   if(['queued','investigating','specifying','generating','compiling','packaging'].includes(j.status)){
+   if(['queued','investigating','specifying','generating','compiling','repairing','packaging'].includes(j.status)){
     j.status='failed';j.error='Trabalho interrompido. Reenvie para iniciar novamente.';await store(j);
    }else jobs.set(j.id,j);
   }catch{}
