@@ -59,7 +59,7 @@ async function readBody(req) {
 function extractReaHints(raw,target){
  const site=new URL(target),pageUrls=[],imageUrls=[];
  const safeText=String(raw||'').replace(/\\\\\//g,'/');
- const found=safeText.match(/https?:\\/\\/[^\\s"'<>\\\\)]+/gi)||[];
+ const found=safeText.match(/https?:\/\/[^\s"'<>]+/gi)||[];
  for(const ref of found.slice(0,1000)){
   let u;try{u=new URL(ref.replace(/[.,;]+$/,''))}catch{continue}
   if(u.protocol!=='https:'&&u.protocol!=='http:')continue;
