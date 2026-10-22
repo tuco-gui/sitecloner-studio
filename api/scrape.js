@@ -202,7 +202,33 @@ module.exports = async (req,res) => {
         zip.file(local,data);
       } catch(e){assetErrors.push({url,error:e.message});}
     }
-    zip.file('captura.json',JSON.stringify({source:entry.href,createdAt:new Date().toISOString(),pages:reports,assetsSaved:Object.keys(zip.files).filter(x=>x.startsWith('assets/')).length,assetErrors,limitations:['Até três páginas por operação','Arquivos de terceiros não são incorporados','Scripts e rotas dinâmicas podem não funcionar offline','Use apenas em sites para os quais você tem autorização']},null,2));
+    // Optional REA analysis worker. Never exposes its token or URL to the browser.
+    // Worker must be behind authenticated HTTPS; an unconfigured/unavailable
+    // worker must not break the ordinary Playwright ZIP capture.
+    let reaReport={status:'not_configured'};
+    if (process.env.REA_WORKER_URL && process.env.REA_WORKER_TOKEN && Date.now()-start<DEADLINE-11000) {
+      try {
+        const endpoint=new URL(process.env.REA_WORKER_URL);
+        if (endpoint.protocol!=='https:' || endpoint.username || endpoint.password) {
+          throw new Error('REA_WORKER_URL deve usar HTTPS');
+        }
+        const abort=new AbortController();
+        const timer=setTimeout(()=>abort.abort(),7500);
+        try {
+          const reaResponse=await fetch(new URL('/analyze',endpoint).href,{
+            method:'POST',signal:abort.signal,
+            headers:{'Content-Type':'application/json',Authorization:'Bearer '+process.env.REA_WORKER_TOKEN},
+            body:JSON.stringify({url:entry.href})
+          });
+          if(!reaResponse.ok) throw new Error('HTTP '+reaResponse.status);
+          const raw=await reaResponse.text();
+          if(raw.length>80000) throw new Error('Relatório REA acima do limite');
+          reaReport=JSON.parse(raw);
+        } finally { clearTimeout(timer); }
+      } catch(e) { reaReport={status:'unavailable',reason:String(e.message||e).slice(0,160)}; }
+    }
+    zip.file('rea-analysis.json',JSON.stringify(reaReport,null,2));
+    zip.file('captura.json',JSON.stringify({source:entry.href,createdAt:new Date().toISOString(),pages:reports,assetsSaved:Object.keys(zip.files).filter(x=>x.startsWith('assets/')).length,assetErrors,reaStatus:reaReport.status,limitations:['Até três páginas por operação','Arquivos de terceiros não são incorporados','Scripts e rotas dinâmicas podem não funcionar offline','Use apenas em sites para os quais você tem autorização']},null,2));
     const payload=await zip.generateAsync({type:'nodebuffer',compression:'DEFLATE',compressionOptions:{level:5}});
     if(payload.length>ZIP_MAX)throw new Error('ZIP excedeu o limite');
     res.setHeader('Content-Type','application/zip');
