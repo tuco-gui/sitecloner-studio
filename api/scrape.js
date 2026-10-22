@@ -1,3 +1,4 @@
+const {isAuthorized}=require('../lib/capture-auth');
 const { chromium: playwright } = require('playwright-core');
 const chromium = require('@sparticuz/chromium');
 const cheerio = require('cheerio');
@@ -52,6 +53,7 @@ function pathForPage(u, index) {
 module.exports = async (req,res) => {
   res.setHeader('Cache-Control','no-store');
   if(req.method!=='POST') return res.status(405).json({error:'Use POST'});
+  if(!isAuthorized(req)) return res.status(401).json({error:'Acesso restrito. Informe a chave de acesso do SiteCloner.'});
   let browser;
   try {
     const entry=await checkUrl(req.body?.url);
