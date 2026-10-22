@@ -217,7 +217,7 @@ module.exports = async (req,res) => {
         const abort=new AbortController();
         const timer=setTimeout(()=>abort.abort(),7500);
         try {
-          const reaResponse=await fetch(new URL('/analyze',endpoint).href,{
+          const reaResponse=await fetch(new URL(endpoint.pathname.replace(/\/$/,'')+'/analyze',endpoint.origin).href,{
             method:'POST',signal:abort.signal,
             headers:{'Content-Type':'application/json',Authorization:'Bearer '+process.env.REA_WORKER_TOKEN},
             body:JSON.stringify({url:entry.href})
