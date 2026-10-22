@@ -172,7 +172,7 @@ module.exports = async (req,res) => {
         $('base, meta[http-equiv="refresh"]').remove();
         $('script[src],link[href],img[src],source[src],video[poster]').each((_,el)=>{
           const name=el.name==='link'?'href':el.name==='video'?'poster':'src';
-          const value=$(el).attr(name);
+          const value=(el.name==='img'?($(el).attr('src')||$(el).attr('data-src')||$(el).attr('data-lazy-src')):$(el).attr(name));
           if(!value) return;
           try {
             const absolute=new URL(value,current).href;
@@ -235,8 +235,7 @@ module.exports = async (req,res) => {
       });
       const pageHtml='<!DOCTYPE html>\n'+$.html();
       if(designMode==='redesign'){
-        let changed=redesign(pageHtml);
-        if(file!=='index.html')changed=changed.replace('href="sitecloner-redesign.css"','href="../sitecloner-redesign.css"');
+        let changed=redesign(pageHtml,{nested:file!=='index.html'});
         zip.file(file,changed);
       }else zip.file(file,pageHtml);
     }
