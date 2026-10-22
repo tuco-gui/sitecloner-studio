@@ -32,3 +32,11 @@ O navegador Chromium iniciado dentro da função Vercel não fica acessível em 
 - `REA_MCP_TOKEN`: token secreto do serviço, somente no servidor.
 
 **Não configure `REA_MCP_URL` no navegador, não inclua token em frontend e não declare integração operacional sem worker validado.**
+
+## Controle de acesso do SiteCloner
+
+O endpoint `/api/scrape` agora exige `SITECLONER_API_KEY` no ambiente de servidor e recebe a chave pelo cabeçalho `x-sitecloner-key`. A interface solicita a chave, mas não a persiste no navegador. Sem a variável, a API **recusa** novas capturas (fail closed). Não fazer merge sem configurar a chave na Vercel.
+
+O worker exige `REA_WORKER_TOKEN` e `ALLOWED_HOSTS`. O backend precisa de `REA_WORKER_URL` (HTTPS) e `REA_WORKER_TOKEN`. Não expor porta CDP ou conectar a Vercel por HTTP público.
+
+Status em 22/10/2026: GitHub CI smoke e VPS loopback de REA passaram. Falta HTTPS autenticado da Vercel, provisionamento do secret e validação E2E pública. `main` inalterada.
