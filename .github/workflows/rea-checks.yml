@@ -28,3 +28,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker build --file worker/Dockerfile --tag sitecloner-rea-worker:test .
+
+  rea-browser-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install --ignore-scripts --no-audit --no-fund
+      - run: npm install --global --no-audit --no-fund rea-agents@6.7.0
+      - run: sudo apt-get update -qq && sudo apt-get install -y chromium
+      - name: Start isolated worker
+        run: |
+          REA_WORKER_TOKEN=ci-local-token ALLOWED_HOSTS=example.com CHROMIUM_PATH=/usr/bin/chromium node worker/server.js > /tmp/worker.log 2>&1 &
+          echo $! > /tmp/worker.pid
+          for n in $(seq 1 20); do curl --silent --fail http://127.0.0.1:8790/health && break; sleep 1; done
+      - name: Check browser-to-REA MCP capture
+        run: |
+          STATUS=$(curl -sS --max-time 90 -o /tmp/result.json -w '%{http_code}' \
+            -X POST http://127.0.0.1:8790/analyze \
+            -H 'Authorization: Bearer ci-local-token' \
+            -H 'Content-Type: application/json' \
+            -d '{"url":"https://example.com"}')
+          node -e "const f=require('fs');const d=JSON.parse(f.readFileSync('/tmp/result.json','utf8'));console.log(JSON.stringify({httpStatus:process.argv[1],status:d.status,tool:d.tool,error:d.error},null,2));if(process.argv[1]!=='200'||d.status!=='ok')process.exit(1)" "$STATUS"
+      - name: Diagnostics on failure
+        if: failure()
+        run: tail -80 /tmp/worker.log || true
