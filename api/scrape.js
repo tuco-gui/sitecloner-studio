@@ -213,7 +213,7 @@ module.exports = async (req,res) => {
           $(el).attr('href',relative+fragment);
         } catch {}
       });
-      const pageHtml='<!DOCTYPE html>\\n'+$.html();
+      const pageHtml='<!DOCTYPE html>\n'+$.html();
       if(designMode==='redesign'){
         let changed=redesign(pageHtml);
         if(file!=='index.html')changed=changed.replace('href="sitecloner-redesign.css"','href="../sitecloner-redesign.css"');
