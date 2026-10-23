@@ -86,3 +86,13 @@ test('9Router tem perfil exclusivo gratuito e não fica pronto sem credencial',a
  assert.equal(await verifyModelAccess(c,async()=>({ok:true,text:async()=>JSON.stringify({models:['FIGUEIRA-FREE']})})),false);
  assert.equal(await verifyModelAccess(c,async()=>({ok:false})),false);
 });
+
+test('Ollama usa API OpenAI somente em loopback, com modelo local explícito',async()=>{
+ assert.equal(modelConfig({BUILDER_MODEL_PROVIDER:'ollama'}),null);
+ const c=modelConfig({BUILDER_MODEL_PROVIDER:'ollama',BUILDER_MODEL_NAME:'qwen-local'});
+ assert.equal(c.provider,'ollama');
+ assert.equal(c.endpoint,'http://127.0.0.1:11434/v1/chat/completions');
+ assert.equal(c.token,'ollama-local');
+ assert.equal(await verifyModelAccess(c,async()=>({ok:true,text:async()=>JSON.stringify({data:[{id:'qwen-local'}]})})),true);
+ assert.throws(()=>modelConfig({BUILDER_MODEL_PROVIDER:'ollama',BUILDER_MODEL_NAME:'qwen-local',BUILDER_MODEL_ENDPOINT:'http://192.168.1.9:11434/v1/chat/completions'}),/HTTPS/);
+});
