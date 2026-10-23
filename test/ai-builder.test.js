@@ -3,7 +3,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const JSZip=require('jszip');
 const {makeSpec}=require('../lib/ai-builder/spec');
-const {generateWithModel,modelConfig}=require('../lib/ai-builder/model');
+const {generateWithModel,modelConfig,verifyModelAccess}=require('../lib/ai-builder/model');
 const {normalizeProject,projectZip}=require('../lib/ai-builder/project');
 const {compileProject}=require('../lib/ai-builder/compile');
 const sampleRea={status:'ok',coverage:{successful:['inspect_web_page','analyze_web_bundle']},
@@ -66,4 +66,23 @@ test('reparo envia diagnóstico do compilador e exige novo projeto completo',asy
  assert.match(body.messages[1].content,/JSX syntax error/);
  assert.match(body.messages[1].content,/previousProject/);
  assert.equal(result.output.files.length,2);
+});
+
+test('9Router tem perfil exclusivo gratuito e não fica pronto sem credencial',async()=>{
+ const base={BUILDER_MODEL_PROVIDER:'9router'};
+ assert.equal(modelConfig(base),null);
+ const c=modelConfig({...base,BUILDER_MODEL_API_KEY:'fixture-only'});
+ assert.equal(c.model,'FIGUEIRA-SITECLONER-FREE');
+ assert.equal(c.provider,'9router');
+ assert.equal(new URL(c.endpoint).pathname,'/v1/chat/completions');
+ let requested;
+ const ok=await verifyModelAccess(c,async(url,opt)=>{
+   requested={url,authorization:opt.headers.Authorization};
+   return {ok:true,text:async()=>JSON.stringify({data:[{id:'FIGUEIRA-FREE'},{id:'FIGUEIRA-SITECLONER-FREE'}]})};
+ });
+ assert.equal(ok,true);
+ assert.ok(requested.url.endsWith('/v1/models'));
+ assert.equal(requested.authorization,'Bearer fixture-only');
+ assert.equal(await verifyModelAccess(c,async()=>({ok:true,text:async()=>JSON.stringify({models:['FIGUEIRA-FREE']})})),false);
+ assert.equal(await verifyModelAccess(c,async()=>({ok:false})),false);
 });
