@@ -7,7 +7,7 @@ const fs=require('node:fs');
 const fsp=require('node:fs/promises');
 const crypto=require('node:crypto');
 const {makeSpec,normalizedTarget}=require('../lib/ai-builder/spec');
-const {generateWithModel,modelConfig}=require('../lib/ai-builder/model');
+const {generateWithModel,modelConfig,verifyModelAccess}=require('../lib/ai-builder/model');
 const {normalizeProject,projectZip}=require('../lib/ai-builder/project');
 const {compileProject}=require('../lib/ai-builder/compile');
 const PORT=Number(process.env.PORT||8791),HOST=process.env.HOST||'127.0.0.1';
@@ -17,6 +17,14 @@ const TOKEN=readSecret(process.env.BUILDER_WORKER_TOKEN,process.env.BUILDER_WORK
 const REA_TOKEN=readSecret(process.env.REA_WORKER_TOKEN,process.env.REA_WORKER_TOKEN_FILE);
 const MODEL_KEY=readSecret(process.env.BUILDER_MODEL_API_KEY,process.env.BUILDER_MODEL_API_KEY_FILE);
 const configured=()=>Boolean(TOKEN&&REA_TOKEN&&process.env.REA_WORKER_URL&&modelConfig({...process.env,BUILDER_MODEL_API_KEY:MODEL_KEY}));
+let lastAccess={until:0,ready:false};
+async function builderReady(){
+ if(!configured())return false;
+ if(lastAccess.until>Date.now())return lastAccess.ready;
+ const ready=await verifyModelAccess(modelConfig({...process.env,BUILDER_MODEL_API_KEY:MODEL_KEY}));
+ lastAccess={until:Date.now()+30000,ready};
+ return ready;
+}
 const jobs=new Map(),queue=[];let running=false;
 const validId=id=>/^[0-9a-f-]{36}$/.test(id||'');
 const directory=id=>path.join(ROOT,id);
@@ -136,11 +144,11 @@ async function readJson(req){
 }
 const server=http.createServer(async(req,res)=>{
  const json=(status,obj)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(obj))};
- if(req.url==='/health'&&req.method==='GET')return json(200,{ok:true,ready:configured(),queue:queue.length,busy:running});
+ if(req.url==='/health'&&req.method==='GET')return json(200,{ok:true,ready:await builderReady(),queue:queue.length,busy:running});
  if(!authorized(req.headers.authorization))return json(401,{error:'Unauthorized'});
  const pathname=new URL(req.url,'http://localhost').pathname;
  if(req.method==='POST'&&pathname==='/jobs'){
-  if(!configured())return json(503,{error:'Agente IA ainda não configurado'});
+  if(!(await builderReady()))return json(503,{error:'Agente IA indisponível ou combo do 9Router não encontrado'});
   if(running&&queue.length>=5)return json(429,{error:'Fila cheia'});
   try{
    const body=await readJson(req);const source=normalizedTarget(body.url);
