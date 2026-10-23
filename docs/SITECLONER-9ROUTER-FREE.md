@@ -33,6 +33,7 @@ O token do 9Router não vai para o navegador ou variáveis públicas da Vercel. 
 ## Ollama e OpenCode
 
 - **Ollama** é um serviço de inferência e tem API `/v1/chat/completions`, mas modelos locais precisam de RAM/CPU/GPU e contexto suficiente para código de site/app. Não instalar diretamente na VPS principal que já roda os serviços institucionais sem medir recursos e isolar limites.
+  O builder aceita `BUILDER_MODEL_PROVIDER=ollama` com `BUILDER_MODEL_NAME=<modelo instalado>`. A URL padrão é `http://127.0.0.1:11434/v1/chat/completions` (somente se Ollama estiver no mesmo namespace de rede do worker). Endereços HTTP remotos são rejeitados; use HTTPS autenticado para Ollama remoto. O worker verifica `GET /v1/models` antes de aceitar trabalhos.
 - **OpenCode** é um agente capaz de ler/escrever arquivos e executar comandos. Pode utilizar 9Router ou Ollama, e em uma segunda etapa pode substituir o gerador JSON simples por um agente que revisa o projeto em sessões. Qualquer execução precisa ocorrer em sandbox restrita, sem `docker.sock`, OpenBao ou rede de clientes.
 - O SiteCloner atual pode consumir o **endpoint de IA do 9Router diretamente**. Não é preciso instalar OpenCode para a primeira geração React.
 - O provedor gratuito pode falhar, limitar tokens ou deixar de existir. Isso não é garantia de clonagem gratuita e ilimitada.
